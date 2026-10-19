@@ -156,3 +156,81 @@ W7: Final 25-Scenario Defense, Code Audit & Systems Handbook Submission
 5. **Signature Offline Demonstration (10 Pts)**: 10-minute WAN disconnect test with complete event conservation.
 6. **Local Web Console Usability (5 Pts)**: Responsive dashboard displaying live PIDs, memory, and outbox queues.
 7. **Individual Technical Defense (20 Pts)**: Oral defense of virtual memory, context switches, locks, signals, and offline edge fault models.
+
+---
+
+## 7. My Work: Environment and Processes
+
+I work on two parts of the OS5 project: preparing the program to start and
+managing its worker processes. The goal is that the node can run locally and
+stop cleanly when the computer is shutting down.
+
+### Environment and Startup
+
+The startup scripts are in `scripts/`:
+
+- `preflight.sh` checks that the computer uses Linux and has Bash, Python 3.12,
+   SQLite, and the command-line tools used by the project. It reports missing
+   tools before stopping.
+- `setup.sh` creates the Python virtual environment in `.venv` and installs the
+   packages from `requirements.txt`. It creates `data/os5.db`, runs
+   `sql/schema.sql`, turns on SQLite WAL mode, and checks that WAL is active.
+- `start_demo.sh` runs the preflight check. If `.venv` is missing, it runs the
+   setup script. Then it starts `src/edge/supervisor.py` in the foreground. The
+   terminal shows the dashboard address, `http://127.0.0.1:8000`.
+
+The usual command on Linux is:
+
+```bash
+bash scripts/start_demo.sh
+```
+
+The scripts are for Linux, so I should run them in Ubuntu or WSL, not directly
+in a normal Windows PowerShell window.
+
+At the time this document was written, `sql/schema.sql` is empty. Setup can
+create the database file and enable WAL, but the project tables will appear
+only after the database schema is added.
+
+### Processes and Restart
+
+The supervisor is in `src/edge/supervisor.py`. It starts four named processes:
+`SensorGen`, `Processor`, `HealthMon`, and `API`.
+
+- Each process has a control queue. The supervisor sends the word `stop` to ask
+   the process to finish.
+- SIGINT (Ctrl+C) and SIGTERM set a shutdown flag. The main loop then starts a
+   clean shutdown.
+- `join()` waits for each child process to finish. This lets the parent collect
+   the child's result instead of leaving a zombie process.
+- If a child does not stop within two seconds, the supervisor terminates it and
+   waits for it again. It then closes the queues.
+- If a worker exits unexpectedly, the supervisor stops the other workers and
+   returns an error.
+
+The worker functions are currently placeholders. They only wait for the `stop`
+message until the real sensor, processor, health, and API code is connected.
+Automatic restart after a worker is killed with SIGKILL is not implemented in
+this part yet; it is planned for W5.
+
+### What I Checked
+
+- Python compiled the supervisor without a syntax error.
+- A local run started the four workers, sent the stop messages, and checked
+   that all workers exited and were joined.
+- SQLite setup logic was tested with a temporary database, and WAL mode was
+   checked after applying the schema file.
+- The full setup and demo still need to be run on Linux. The current schema is
+   empty, and the real worker functions and database integration are still in
+   progress.
+
+### How to Switch Between My Branches
+
+Each task has a separate local branch:
+
+```powershell
+git switch feature/environment-startup
+git switch feature/process-restart
+```
+
+The commits are local and have not been pushed to the remote repository.
