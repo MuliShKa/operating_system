@@ -1,4 +1,4 @@
-# Environment and Startup (W1-W2)
+# Environment and Startup (W1-W3)
 
 This task prepares the Linux development environment and provides the first
 one-command launcher for the Songdo edge node.
@@ -9,6 +9,8 @@ one-command launcher for the Songdo edge node.
   required command-line tools: `ps`, `pkill`, `awk`, `sed`, `flock`, and `curl`.
 - `scripts/setup.sh` creates `.venv` and installs the packages in
   `requirements.txt` (`psutil` and `PyYAML`).
+- `scripts/setup.sh` also creates `data/os5.db`, applies `sql/schema.sql`, and
+  verifies SQLite WAL mode.
 - `scripts/start_demo.sh` runs preflight, sets up the virtual environment if it
   is missing, and starts `src/edge/supervisor.py` in the foreground. The
   dashboard URL is printed before startup.
@@ -30,5 +32,5 @@ launch command is:
 bash scripts/start_demo.sh
 ```
 
-Stop the foreground demo with Ctrl+C. Docker, systemd, database initialization,
-and the node-name argument are later-week tasks and are not included here.
+Stop the foreground demo with Ctrl+C. Docker, systemd, and the node-name
+argument are later-week tasks and are not included here.
