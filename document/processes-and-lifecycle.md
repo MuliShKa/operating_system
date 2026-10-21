@@ -1,4 +1,4 @@
-# Processes and Restart (W1-W2)
+# Processes and Lifecycle
 
 This task owns the lifecycle of the four edge-node worker processes.
 

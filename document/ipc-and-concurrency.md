@@ -1,11 +1,17 @@
 # Edge IPC: how the node's processes talk to each other
 
+> **Current demo note:** This guide documents IPC primitives and standalone
+> concurrency demonstrations. The integrated demo shares a bounded event queue
+> and stop event between SensorGen and Processor; the Unix socket and priority
+> queue examples are not currently used by the running dashboard pipeline.
+> Worker auto-restart is not implemented.
+
 > **In one sentence:** the edge node is split into separate Linux processes.
 > This folder gives them safe ways to **send data**, **share flags** and
 > **ask each other questions**, and proves with demos and tests that they do
 > not lose data, corrupt counters or freeze.
 
-Python 3.12 · Linux · standard library only · 19 automated tests
+Python 3.12 · Linux · standard library IPC examples
 
 ---
 
@@ -30,8 +36,9 @@ Python 3.12 · Linux · standard library only · 19 automated tests
 ## 1. The problem
 
 The node runs as **several processes**: SensorGen, Processor, HealthMon, API.
-Separate processes are good: if one crashes, the others keep running and the
-supervisor restarts it.
+Separate processes have independent memory, so they need explicit IPC to share
+data and stop signals. The current demo supervisor stops if a worker exits; it
+does not automatically restart that worker.
 
 But each process has its **own virtual memory**. A Python variable in
 SensorGen does not exist in Processor. So we need **IPC** (Inter-Process
@@ -60,7 +67,7 @@ Three tools, each picked for **one job**:
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │ Supervisor: creates these channels ONCE, gives the same ones to              │
-│ every process, restarts crashed workers, stop.set() stops them all           │
+│ every process, stop.set() stops them all                                     │
 └──────────────────────────────────────────────────────────────────────────────┘
                                        │
                                        v
