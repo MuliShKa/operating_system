@@ -21,5 +21,6 @@ fi
 
 printf 'Opening the dashboard at http://127.0.0.1:8000\n'
 cd "$PROJECT_ROOT"
+export PYTHONPATH="$PROJECT_ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
 # Keep the supervisor in the foreground so Ctrl+C can stop it.
-exec "$VENV_PYTHON" "$PROJECT_ROOT/src/edge/supervisor.py"
+exec "$VENV_PYTHON" -m edge.supervisor

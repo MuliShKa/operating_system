@@ -3,6 +3,7 @@
 
 import json
 import sqlite3
+from contextlib import contextmanager
 from pathlib import Path
 
 
@@ -27,9 +28,19 @@ def get_connection():
     return connection
 
 
+@contextmanager
+def _managed_connection():
+    connection = get_connection()
+    try:
+        with connection:
+            yield connection
+    finally:
+        connection.close()
+
+
 def initialize_database():
     """Create the tables and enable SQLite WAL mode."""
-    with get_connection() as connection:
+    with _managed_connection() as connection:
         connection.execute("PRAGMA journal_mode = WAL")
 
         schema = SCHEMA_PATH.read_text(encoding="utf-8")
@@ -43,7 +54,7 @@ def save_event(event_id, event_type, event_time, payload):
         ensure_ascii=False
     )
 
-    with get_connection() as connection:
+    with _managed_connection() as connection:
         cursor = connection.execute(
             """
             INSERT OR IGNORE INTO events
@@ -70,7 +81,7 @@ def save_event(event_id, event_type, event_time, payload):
 
 def save_decision(event_id, decision_type, reason=None):
     """Save a decision made by the local system."""
-    with get_connection() as connection:
+    with _managed_connection() as connection:
         cursor = connection.execute(
             "SELECT 1 FROM events WHERE event_id = ?",
             (event_id,)
@@ -93,7 +104,7 @@ def save_decision(event_id, decision_type, reason=None):
 
 def save_process_health(process_name, status, details=None):
     """Record a process health check."""
-    with get_connection() as connection:
+    with _managed_connection() as connection:
         connection.execute(
             """
             INSERT INTO process_health
@@ -109,7 +120,7 @@ def get_pending_events(limit=100):
     if limit < 1:
         raise ValueError("limit must be positive")
 
-    with get_connection() as connection:
+    with _managed_connection() as connection:
         rows = connection.execute(
             """
             SELECT outbox_id, event_id, payload, attempts
@@ -124,9 +135,17 @@ def get_pending_events(limit=100):
     return [dict(row) for row in rows]
 
 
+def get_pending_event_count():
+    """Return the exact number of events waiting for upstream delivery."""
+    with _managed_connection() as connection:
+        return connection.execute(
+            "SELECT COUNT(*) FROM outbox WHERE status = 'pending'"
+        ).fetchone()[0]
+
+
 def mark_event_sent(event_id):
     """Mark an event as sent after server confirmation."""
-    with get_connection() as connection:
+    with _managed_connection() as connection:
         cursor = connection.execute(
             """
             UPDATE outbox

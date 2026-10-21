@@ -20,23 +20,28 @@ class BoundedQueue:
     The producer never blocks, and the newest data is always kept.
     """
 
-    def __init__(self, maxsize: int = 500) -> None:
+    def __init__(
+        self,
+        maxsize: int = 500,
+        context: mp.context.BaseContext | None = None,
+    ) -> None:
+        context = context or mp.get_context()
 
         # The maxsize is the maximum number of items in the queue. If the queue is full, the oldest item will be dropped to make room for a new item.
         self.maxsize = maxsize
 
         # The queue is a multiprocessing Queue, which is a thread-safe queue that can be shared between processes.
-        self._queue: Queue = mp.Queue(maxsize)
+        self._queue: Queue = context.Queue(maxsize)
 
         # Two producers dropping at the same time would throw away two items
         # instead of one, so the "drop + put" step is protected by a lock.
-        self._put_lock = mp.Lock()
+        self._put_lock = context.Lock()
 
         # The put_count is a shared counter that counts the number of items put into the queue.
-        self.put_count = SharedCounter()
+        self.put_count = SharedCounter(context)
 
         # The dropped_count is a shared counter that counts the number of items dropped from the queue.
-        self.dropped_count = SharedCounter()
+        self.dropped_count = SharedCounter(context)
 
     def put(self, item: object) -> None:
         """

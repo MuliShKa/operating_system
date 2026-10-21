@@ -9,11 +9,12 @@ one-command launcher for the Songdo edge node.
   required command-line tools: `ps`, `pkill`, `awk`, `sed`, `flock`, and `curl`.
 - `scripts/setup.sh` creates `.venv` and installs the packages in
   `requirements.txt` (`psutil` and `PyYAML`).
-- `scripts/setup.sh` also creates `data/os5.db`, applies `sql/schema.sql`, and
+- `scripts/setup.sh` also creates `data/songdo.db`, applies `sql/schema.sql`, and
   verifies SQLite WAL mode.
 - `scripts/start_demo.sh` runs preflight, sets up the virtual environment if it
-  is missing, and starts `src/edge/supervisor.py` in the foreground. The
-  dashboard URL is printed before startup.
+  is missing, and starts the connected workers in the foreground. The
+  dashboard at `http://127.0.0.1:8000` shows sensor readings, decisions, worker
+  status, and pending outbox events.
 
 ## Run
 

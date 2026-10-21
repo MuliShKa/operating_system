@@ -7,13 +7,14 @@ class SharedCounter:
     A number stored in shared memory, readable and writable by several processes.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, context: mp.context.BaseContext | None = None) -> None:
+        context = context or mp.get_context()
 
         # The value is a RawValue: a raw integer in shared memory, with NO lock built in.
-        self._value = mp.RawValue("i", 0)
+        self._value = context.RawValue("i", 0)
 
         # The lock lets only one process at a time change the value.
-        self._lock = mp.Lock()
+        self._lock = context.Lock()
 
     def get_value(self) -> int:
         """

@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Songdo Edge Demo</title>
+  <style>
+    :root { color-scheme: dark; font: 16px/1.5 system-ui, sans-serif; }
+    body { max-width: 960px; margin: 2rem auto; padding: 0 1rem; background: #10151c; color: #edf2f7; }
+    h1, h2 { color: #83c5ff; }
+    .panel { margin: 1rem 0; padding: 1rem; border: 1px solid #344253; border-radius: 10px; background: #18212b; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+    li { padding: .35rem 0; border-bottom: 1px solid #344253; }
+    .muted { color: #aab8c7; }
+    #error { color: #ff9b9b; }
+  </style>
+</head>
+<body>
+  <h1>Songdo Edge Demo</h1>
+  <p class="muted">Sensor readings → local decisions → SQLite outbox</p>
+  <p id="error" role="alert"></p>
+  <div class="grid">
+    <section class="panel">
+      <h2>Workers</h2>
+      <ul id="workers"></ul>
+    </section>
+    <section class="panel">
+      <h2>Outbox</h2>
+      <p><strong id="pending">0</strong> pending events</p>
+    </section>
+  </div>
+  <section class="panel">
+    <h2>Recent sensor readings</h2>
+    <ul id="readings"></ul>
+  </section>
+  <section class="panel">
+    <h2>Recent decisions</h2>
+    <ul id="decisions"></ul>
+  </section>
+  <script>
+    // Demo integration: refresh the dashboard from the live status API.
+    function renderList(elementId, items, format) {
+      const list = document.getElementById(elementId);
+      list.replaceChildren();
+      for (const item of items) {
+        const row = document.createElement("li");
+        row.textContent = format(item);
+        list.append(row);
+      }
+      if (items.length === 0) {
+        const row = document.createElement("li");
+        row.textContent = "Waiting for data…";
+        list.append(row);
+      }
+    }
+
+    async function refresh() {
+      try {
+        const response = await fetch("/api/status", { cache: "no-store" });
+        if (!response.ok) throw new Error(`Status API returned ${response.status}`);
+        const status = await response.json();
+        renderList("workers", Object.entries(status.workers), ([name, worker]) =>
+          `${name}: ${worker.status} (PID ${worker.pid})`);
+        renderList("readings", status.recent_readings, item =>
+          `${item.sensor_id}: ${item.value} ${item.unit} — ${item.timestamp}`);
+        renderList("decisions", status.recent_decisions, item =>
+          `${item.action} at ${item.value} m — ${item.reason}`);
+        document.getElementById("pending").textContent = status.pending_events;
+        document.getElementById("error").textContent = "";
+      } catch (error) {
+        document.getElementById("error").textContent = error.message;
+      }
+    }
+
+    refresh();
+    setInterval(refresh, 1000);
+  </script>
+</body>
+</html>

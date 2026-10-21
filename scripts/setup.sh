@@ -13,7 +13,7 @@ python3.12 -m venv "$PROJECT_ROOT/.venv"
 "$PROJECT_ROOT/.venv/bin/python" -m pip install --upgrade pip
 "$PROJECT_ROOT/.venv/bin/python" -m pip install --requirement "$PROJECT_ROOT/requirements.txt"
 
-DB_PATH="$PROJECT_ROOT/data/os5.db"
+DB_PATH="$PROJECT_ROOT/data/songdo.db"
 SCHEMA_PATH="$PROJECT_ROOT/sql/schema.sql"
 # Keep the database in the data folder.
 mkdir -p "$PROJECT_ROOT/data"
