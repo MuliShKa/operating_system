@@ -1,110 +1,420 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>Songdo Edge Intelligence</title>
-
     <style>
-        body {
+        :root {
             font-family: system-ui, sans-serif;
-            max-width: 1000px;
-            margin: 40px auto;
-            padding: 0 20px;
-            background: #f5f7fa;
             color: #172033;
+            background: #f3f6fb;
         }
 
-        h1 {
-            margin-bottom: 8px;
-        }
+    * { box-sizing: border-box; }
 
-        .card {
-            background: white;
-            padding: 24px;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px #00000010;
-        }
+    body {
+        max-width: 1100px;
+        margin: 32px auto;
+        padding: 0 18px;
+    }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
+    h1 { margin-bottom: 4px; }
+    .subtitle { color: #64748b; margin-top: 0; }
 
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #e5e7eb;
-        }
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        gap: 16px;
+        margin: 22px 0;
+    }
 
-        th {
-            background: #f0f3f8;
-        }
+    .card {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px #0000000d;
+        margin-bottom: 18px;
+        overflow-x: auto;
+    }
 
-        .unknown {
-            color: #64748b;
-        }
-    </style>
+    .label { color: #64748b; font-size: 14px; }
+    .value { font-size: 28px; font-weight: 700; margin: 8px 0; }
+    .detail { font-size: 13px; color: #64748b; }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+    }
+
+    th, td {
+        text-align: left;
+        padding: 11px 9px;
+        border-bottom: 1px solid #e5eaf1;
+        white-space: nowrap;
+    }
+
+    th { background: #f5f7fb; font-size: 13px; }
+
+    .badge {
+        display: inline-block;
+        padding: 4px 9px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .running, .normal {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .stopped, .error, .alert {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .unknown, .warning {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .empty { color: #64748b; padding: 16px 0; }
+    .section-title { margin-top: 0; }
+    #connection { font-size: 13px; color: #64748b; }
+    .alert-text { color: #b91c1c; font-weight: 700; }
+button {
+    padding: 10px 14px;
+    margin: 4px 8px 4px 0;
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+#wan-offline {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+#wan-online {
+    background: #dcfce7;
+    color: #166534;
+}
+
+button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+</style>
+
 </head>
-
 <body>
     <h1>Songdo Edge Intelligence</h1>
-    <p>Smart Sluice Gate — System Monitoring</p>
+    <p class="subtitle">Smart Sluice Gate — Live System Monitoring</p>
+    <p id="connection">Connecting to edge node...</p>
+<section class="card">
+    <h2 class="section-title">WAN Connection</h2>
+    <p>
+        Status:
+        <span id="wan-status" class="badge unknown">Checking...</span>
+    </p>
+    <button id="wan-offline" type="button">Simulate WAN Internet Cut</button>
+    <button id="wan-online" type="button">Restore WAN Connection</button>
+    <p id="wan-message" class="detail">
+        Control the simulated upstream connection.
+    </p>
+</section>
+
+<div class="grid">
+    <section class="card">
+        <div class="label">Water Level</div>
+        <div class="value" id="water-level">—</div>
+        <span id="water-status" class="badge unknown">Waiting for data</span>
+        <p class="detail">Warning threshold: 2.8 m</p>
+    </section>
 
     <section class="card">
-        <h2>Process Health</h2>
-
-        <p class="unknown">
-            Prototype: live process monitoring is not connected yet.
-        </p>
-
-        <table>
-            <thead>
-                <tr>
-                    <th>Process</th>
-                    <th>PID</th>
-                    <th>CPU</th>
-                    <th>Memory</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-
-            <tbody>
-                <tr>
-                    <td>SensorGen</td>
-                    <td>—</td>
-                    <td>—</td>
-                    <td>—</td>
-                    <td>Unknown</td>
-                </tr>
-
-                <tr>
-                    <td>Processor</td>
-                    <td>—</td>
-                    <td>—</td>
-                    <td>—</td>
-                    <td>Unknown</td>
-                </tr>
-
-                <tr>
-                    <td>HealthMon</td>
-                    <td>—</td>
-                    <td>—</td>
-                    <td>—</td>
-                    <td>Unknown</td>
-                </tr>
-
-                <tr>
-                    <td>API</td>
-                    <td>—</td>
-                    <td>—</td>
-                    <td>—</td>
-                    <td>Unknown</td>
-                </tr>
-            </tbody>
-        </table>
+        <div class="label">Mains Voltage</div>
+        <div class="value" id="voltage">—</div>
+        <p class="detail">Latest sensor reading</p>
     </section>
+
+    <section class="card">
+        <div class="label">Pending Events</div>
+        <div class="value" id="pending-events">—</div>
+        <p class="detail">Events waiting to be sent</p>
+    </section>
+
+    <section class="card">
+        <div class="label">Active Processes</div>
+        <div class="value" id="active-processes">—</div>
+        <p class="detail">Workers reporting as running</p>
+    </section>
+</div>
+
+<section class="card">
+    <h2 class="section-title">Process Health</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Process</th>
+                <th>PID</th>
+                <th>Status</th>
+                <th>CPU (%)</th>
+                <th>Memory (MB)</th>
+            </tr>
+        </thead>
+        <tbody id="workers">
+            <tr><td colspan="3" class="empty">Waiting for API data...</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<section class="card">
+    <h2 class="section-title">Recent Sensor Readings</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Sensor</th>
+                <th>Value</th>
+                <th>Unit</th>
+                <th>Timestamp</th>
+            </tr>
+        </thead>
+        <tbody id="readings">
+            <tr><td colspan="4" class="empty">Waiting for readings...</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<section class="card">
+    <h2 class="section-title">Recent Decisions</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Action</th>
+                <th>Water Level</th>
+                <th>Reason</th>
+                <th>Timestamp</th>
+            </tr>
+        </thead>
+        <tbody id="decisions">
+            <tr><td colspan="4" class="empty">Waiting for decisions...</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<script>
+    const threshold = 2.8;
+
+    function safeText(value) {
+        return String(value ?? "—");
+    }
+
+    function formatTime(value) {
+        if (!value) return "—";
+        const date = new Date(value);
+        return Number.isNaN(date.getTime())
+            ? safeText(value)
+            : date.toLocaleTimeString();
+    }
+
+    function makeCell(value) {
+        const td = document.createElement("td");
+        td.textContent = safeText(value);
+        return td;
+    }
+
+    function showMessage(tbody, columns, message) {
+        tbody.replaceChildren();
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+        cell.colSpan = columns;
+        cell.className = "empty";
+        cell.textContent = message;
+        row.appendChild(cell);
+        tbody.appendChild(row);
+    }
+
+    async function setWanConnection(online) {
+        const message = document.getElementById("wan-message");
+        const offlineButton = document.getElementById("wan-offline");
+        const onlineButton = document.getElementById("wan-online");
+
+        offlineButton.disabled = true;
+        onlineButton.disabled = true;
+        message.textContent = "Updating WAN connection...";
+
+        try {
+            const endpoint = online ? "/api/wan/online" : "/api/wan/offline";
+            const response = await fetch(endpoint, { method: "POST" });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const result = await response.json();
+            message.textContent = result.message;
+            await refreshDashboard();
+        } catch (error) {
+            message.textContent = `Failed to update WAN connection: ${error.message}`;
+        } finally {
+            offlineButton.disabled = false;
+            onlineButton.disabled = false;
+        }
+    }
+
+    document.getElementById("wan-offline").addEventListener(
+        "click",
+        () => setWanConnection(false)
+    );
+
+    document.getElementById("wan-online").addEventListener(
+        "click",
+        () => setWanConnection(true)
+    );
+    async function refreshDashboard() {
+        const connection = document.getElementById("connection");
+
+        try {
+            const response = await fetch("/api/status", { cache: "no-store" });
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            const wanStatus = document.getElementById("wan-status");
+
+            if (data.wan_online === true) {
+                wanStatus.textContent = "WAN ONLINE";
+                wanStatus.className = "badge running";
+            } else {
+                wanStatus.textContent = "WAN OFFLINE";
+                wanStatus.className = "badge stopped";
+            }
+
+            connection.textContent =
+                `Connected · Last updated ${new Date().toLocaleTimeString()}`;
+
+            const readings = data.recent_readings || [];
+            const waterReadings = readings.filter(
+                item => item.sensor_id === "SLUICE_WATER_LEVEL_M"
+            );
+            const voltageReadings = readings.filter(
+                item => item.sensor_id === "MAINS_VOLT"
+            );
+
+            const water = waterReadings.at(-1);
+            const voltage = voltageReadings.at(-1);
+
+            document.getElementById("water-level").textContent =
+                water ? `${Number(water.value).toFixed(2)} m` : "—";
+
+            const waterStatus = document.getElementById("water-status");
+            if (water) {
+                const alert = Number(water.value) > threshold;
+                waterStatus.textContent = alert ? "HIGH WATER LEVEL" : "Normal";
+                waterStatus.className = `badge ${alert ? "alert" : "normal"}`;
+            } else {
+                waterStatus.textContent = "No data";
+                waterStatus.className = "badge unknown";
+            }
+
+            document.getElementById("voltage").textContent =
+                voltage ? `${Number(voltage.value).toFixed(2)} V` : "—";
+
+            document.getElementById("pending-events").textContent =
+                safeText(data.pending_events ?? 0);
+
+            const workers = data.workers || {};
+            const workerList = Object.entries(workers);
+            const active = workerList.filter(
+                ([, worker]) => worker.status === "running"
+            ).length;
+            document.getElementById("active-processes").textContent =
+                `${active} / ${workerList.length}`;
+
+            const workersBody = document.getElementById("workers");
+            workersBody.replaceChildren();
+
+            if (workerList.length === 0) {
+                showMessage(workersBody, 3, "No worker data available");
+            } else {
+                for (const [name, worker] of workerList) {
+                    const row = document.createElement("tr");
+                    row.appendChild(makeCell(name));
+                    row.appendChild(makeCell(worker.pid ?? "—"));
+
+                    const statusCell = document.createElement("td");
+                    const badge = document.createElement("span");
+                    badge.className = `badge ${
+                        worker.status === "running" ? "running" :
+                        worker.status === "stopped" ? "stopped" : "unknown"
+                    }`;
+                    badge.textContent = worker.status ?? "unknown";
+                    statusCell.appendChild(badge);
+                    row.appendChild(statusCell);
+
+                    const cpu = worker.cpu_percent;
+                    row.appendChild(makeCell(
+                        cpu == null ? "—" : `${Number(cpu).toFixed(1)}%`
+                    ));
+
+                    const memory = worker.memory_mb;
+                    row.appendChild(makeCell(
+                        memory == null ? "—" : `${Number(memory).toFixed(2)} MB`
+                    ));
+
+                    workersBody.appendChild(row);
+                }
+            }
+
+            const readingsBody = document.getElementById("readings");
+            readingsBody.replaceChildren();
+
+            if (readings.length === 0) {
+                showMessage(readingsBody, 4, "No sensor readings yet");
+            } else {
+                for (const item of [...readings].reverse()) {
+                    const row = document.createElement("tr");
+                    row.appendChild(makeCell(item.sensor_id));
+                    row.appendChild(makeCell(item.value));
+                    row.appendChild(makeCell(item.unit));
+                    row.appendChild(makeCell(formatTime(item.timestamp)));
+                    readingsBody.appendChild(row);
+                }
+            }
+
+            const decisionsBody = document.getElementById("decisions");
+            decisionsBody.replaceChildren();
+            const decisions = data.recent_decisions || [];
+
+            if (decisions.length === 0) {
+                showMessage(decisionsBody, 4, "No decisions recorded yet");
+            } else {
+                for (const item of [...decisions].reverse()) {
+                    const row = document.createElement("tr");
+                    row.appendChild(makeCell(item.action));
+                    row.appendChild(makeCell(
+                        item.value == null ? "—" : `${item.value} m`
+                    ));
+                    row.appendChild(makeCell(item.reason));
+                    row.appendChild(makeCell(formatTime(item.timestamp)));
+                    decisionsBody.appendChild(row);
+                }
+            }
+        } catch (error) {
+            connection.textContent =
+                `Connection failed: ${error.message}. Is the edge supervisor running?`;
+        }
+    }
+
+    refreshDashboard();
+    setInterval(refreshDashboard, 2000);
+</script>
+
 </body>
 </html>
