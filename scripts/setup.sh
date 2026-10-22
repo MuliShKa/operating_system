@@ -9,7 +9,11 @@ PROJECT_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 bash "$SCRIPT_DIR/preflight.sh"
 
 # Create Python environment and install the project packages.
-python3.12 -m venv "$PROJECT_ROOT/.venv"
+PYTHON_BIN=python3
+if command -v python3.12 >/dev/null 2>&1; then
+	PYTHON_BIN=python3.12
+fi
+"$PYTHON_BIN" -m venv "$PROJECT_ROOT/.venv"
 "$PROJECT_ROOT/.venv/bin/python" -m pip install --upgrade pip
 "$PROJECT_ROOT/.venv/bin/python" -m pip install --requirement "$PROJECT_ROOT/requirements.txt"
 

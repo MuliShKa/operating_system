@@ -13,10 +13,15 @@ if [[ -z "${BASH_VERSION:-}" ]]; then
 fi
 
 # Check Python version and all tools used by the project.
-if ! command -v python3.12 >/dev/null 2>&1; then
-	failures+=("Python 3.12 (python3.12)")
-elif ! python3.12 -c 'import sys; raise SystemExit(0 if sys.version_info[:2] == (3, 12) else 1)' >/dev/null 2>&1; then
-	failures+=("Python 3.12 (python3.12 reports another version)")
+PYTHON_BIN=python3
+if command -v python3.12 >/dev/null 2>&1; then
+	PYTHON_BIN=python3.12
+fi
+
+if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+	failures+=("Python 3.12 or 3.14 (python3)")
+elif ! "$PYTHON_BIN" -c 'import sys; raise SystemExit(0 if sys.version_info[:2] in {(3, 12), (3, 14)} else 1)' >/dev/null 2>&1; then
+	failures+=("Python 3.12 or 3.14 ($PYTHON_BIN reports $($PYTHON_BIN --version 2>&1))")
 fi
 
 for tool in sqlite3 ps pkill awk sed flock curl; do
@@ -33,4 +38,4 @@ if ((${#failures[@]})); then
 fi
 
 # Setup can start when every check passed.
-printf 'Preflight passed: Linux, Bash, Python 3.12, SQLite3, and required tools are available.\n'
+printf 'Preflight passed: Linux, Bash, Python %s, SQLite3, and required tools are available.\n' "$($PYTHON_BIN --version 2>&1 | awk '{print $2}')"

@@ -22,9 +22,9 @@ stores events and decisions, and a browser dashboard shows live status.
 
 ## Requirements
 
-The supported environment is **Ubuntu 24.04 / Linux with Python 3.12**. The
-startup checks also require Bash and these command-line tools: `sqlite3`, `ps`,
-`pkill`, `awk`, `sed`, `flock`, and `curl`.
+The supported environment is **Ubuntu 24.04 with Python 3.12 or Ubuntu 26.04
+with Python 3.14**. The startup checks also require Bash and these command-line
+tools: `sqlite3`, `ps`, `pkill`, `awk`, `sed`, `flock`, and `curl`.
 
 Windows users should run the project in WSL, not directly from PowerShell.
 Ubuntu 24.04 in WSL includes Python 3.12. Running the shell scripts from a
@@ -44,7 +44,7 @@ Run the following commands **inside the Ubuntu terminal**:
 
 ```bash
 sudo apt update
-sudo apt install -y git python3.12 python3.12-venv python3-pip \
+sudo apt install -y git python3 python3-venv python3-pip \
   sqlite3 procps gawk sed util-linux curl
 ```
 
@@ -139,17 +139,17 @@ demo database.
 
 ## Troubleshooting
 
-### Preflight says Python 3.12 or a utility is missing
+### Preflight says Python 3.12 or 3.14 or a utility is missing
 
 Run the prerequisite installation commands above in Ubuntu/WSL. Check the
 interpreter version with:
 
 ```bash
-python3.12 --version
+python3 --version
 ```
 
-The script intentionally requires Python 3.12. A different Python version,
-including Python 3.13, does not pass preflight.
+The script accepts Python 3.12 or 3.14. Other Python versions, including
+Python 3.13, do not pass preflight.
 
 ### Port 8000 is already in use
 
