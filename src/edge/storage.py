@@ -163,10 +163,13 @@ def mark_event_sent(event_id):
             (event_id,)
         )
 
+        return cursor.rowcount == 1
+
+
 def mark_event_attempt(event_id):
     """Increment the delivery attempt count for a pending event."""
     with _managed_connection() as connection:
-        connection.execute(
+        cursor = connection.execute(
             """
             UPDATE outbox
             SET attempts = attempts + 1
