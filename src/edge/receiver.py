@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from contextlib import closing
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
+
+from edge import storage
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[2]
@@ -17,7 +20,8 @@ def initialize_receiver_database() -> None:
     """Create the receiver's event table."""
     RECEIVER_DATABASE.parent.mkdir(parents=True, exist_ok=True)
 
-    with sqlite3.connect(RECEIVER_DATABASE) as connection:
+    # "with connect()" only commits, closing() is what releases the file
+    with closing(sqlite3.connect(RECEIVER_DATABASE)) as connection, connection:
         connection.execute("""
             CREATE TABLE IF NOT EXISTS received_events (
                 event_id TEXT PRIMARY KEY,
@@ -37,7 +41,7 @@ def accept_event(event: dict[str, Any]) -> bool:
 
     payload_json = json.dumps(payload, ensure_ascii=False, sort_keys=True)
 
-    with sqlite3.connect(RECEIVER_DATABASE, timeout=10) as connection:
+    with closing(sqlite3.connect(RECEIVER_DATABASE, timeout=10)) as connection, connection:
         cursor = connection.execute(
             """
             INSERT OR IGNORE INTO received_events (event_id, payload)
@@ -47,6 +51,34 @@ def accept_event(event: dict[str, Any]) -> bool:
         )
 
     return cursor.rowcount == 1
+
+
+def get_received_count() -> int:
+    """How many different events made it upstream."""
+    initialize_receiver_database()
+    with closing(sqlite3.connect(RECEIVER_DATABASE, timeout=10)) as connection:
+        return connection.execute(
+            "SELECT COUNT(*) FROM received_events"
+        ).fetchone()[0]
+
+
+def check_conservation() -> dict[str, Any]:
+    """No event lost: everything created is either upstream or still queued.
+
+    Only meaningful when the sync worker is idle, otherwise an event can be
+    received upstream but not marked sent yet and gets counted twice.
+    """
+    # need to ask: if someone wipes data/songdo.db but not upstream_receiver.db
+    # the numbers won't match anymore, do we reset both at startup?
+    created = storage.get_event_count()
+    received = get_received_count()
+    queued = storage.get_pending_event_count()
+    return {
+        "created": created,
+        "received": received,
+        "queued": queued,
+        "ok": created == received + queued,
+    }
 
 
 def run_receiver(stop_event: Any, host: str = "127.0.0.1", port: int = 8001) -> None:
@@ -104,5 +136,11 @@ def run_receiver(stop_event: Any, host: str = "127.0.0.1", port: int = 8001) -> 
         server.server_close()
         print("Mock upstream receiver stopped.", flush=True)
 
+
 if __name__ == "__main__":
-    run_receiver()
+    # run alone for debugging, Ctrl+C to stop
+    import threading
+    try:
+        run_receiver(threading.Event())
+    except KeyboardInterrupt:
+        pass
