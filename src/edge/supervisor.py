@@ -12,8 +12,12 @@ from edge.SensorGen import run_sensor_gen
 from edge.api_server import run_api_server
 from edge.ipc import IpcChannels
 from edge.processor import run_processor
+from edge.receiver import run_receiver
+from edge.sync_worker import run_sync_worker
 
-PROCESS_NAMES = ("SensorGen", "Processor", "HealthMon", "API")
+# need to ask: Receiver is the fake "cloud", should it really be a child of the
+# node supervisor? kept it here so the demo starts with one command
+PROCESS_NAMES = ("SensorGen", "Processor", "HealthMon", "API", "Receiver", "SyncWorker")
 SHUTDOWN_TIMEOUT_SECONDS = 3.0
 
 _shutdown_requested = False
@@ -50,6 +54,8 @@ def start_processes(context, channels, state):
         "Processor": (run_processor, (channels, state)),
         "HealthMon": (_run_health_monitor, (state, channels.stop)),
         "API": (run_api_server, (state, channels.stop)),
+        "Receiver": (run_receiver, (channels.stop,)),
+        "SyncWorker": (run_sync_worker, (channels, state)),
     }
     workers = {}
     for process_name in PROCESS_NAMES:
