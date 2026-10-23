@@ -158,3 +158,25 @@ def mark_event_sent(event_id):
         )
 
         return cursor.rowcount == 1
+
+
+def mark_event_attempt(event_id):
+    """Count one failed delivery try for a pending event."""
+    with _managed_connection() as connection:
+        connection.execute(
+            """
+            UPDATE outbox
+            SET attempts = attempts + 1
+            WHERE event_id = ?
+              AND status = 'pending'
+            """,
+            (event_id,)
+        )
+
+
+def get_event_count():
+    """Return how many events were created on this node."""
+    with _managed_connection() as connection:
+        return connection.execute(
+            "SELECT COUNT(*) FROM events"
+        ).fetchone()[0]
