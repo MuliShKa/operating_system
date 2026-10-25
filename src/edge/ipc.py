@@ -26,7 +26,7 @@ class IpcChannels:
         # The stop flag is set by the supervisor to ask every worker to stop cleanly.
         self.stop = context.Event()
 
-        # The wan_online flag is cleared by the "cut internet" button, and set again by "restore".
-        # The internet is up at startup, so the flag starts set.
+        # The WAN starts online. The dashboard can clear this flag
+        # to simulate an outage and set it again to restore connectivity.
         self.wan_online = context.Event()
-        self.wan_online.clear()
+        self.wan_online.set()

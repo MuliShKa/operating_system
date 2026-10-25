@@ -1,0 +1,6 @@
+name: EDGE_NODE_OS5_RELIABLE
+sensors:
+  - SLUICE_WATER_LEVEL_M
+  - MAINS_VOLT
+threshold: 2.8
+queue_size: 500

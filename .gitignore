@@ -2,8 +2,14 @@
 __pycache__/
 *.py[cod]
 
-# Local database
-data/*.db
+# Virtual environment
+.venv/
+
+# Project-specific local files
+project/
+
+# Local database files and related SQLite files
+data/*.db*
 
 # Local backup files
 *.backup
