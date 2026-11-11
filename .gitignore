@@ -1,4 +1,9 @@
-.venv/
+# Python cache files
 __pycache__/
-project/
-data/*.db*
+*.py[cod]
+
+# Local database
+data/*.db
+
+# Local backup files
+*.backup

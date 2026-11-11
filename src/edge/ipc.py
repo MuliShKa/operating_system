@@ -29,4 +29,4 @@ class IpcChannels:
         # The wan_online flag is cleared by the "cut internet" button, and set again by "restore".
         # The internet is up at startup, so the flag starts set.
         self.wan_online = context.Event()
-        self.wan_online.set()
+        self.wan_online.clear()
