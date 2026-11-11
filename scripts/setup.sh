@@ -16,7 +16,7 @@ python3.12 -m venv "$PROJECT_ROOT/.venv"
 
 DB_PATH="$PROJECT_ROOT/data/songdo.db"
 SCHEMA_PATH="$PROJECT_ROOT/sql/schema.sql"
-# Create the data directory before SQLite opens the database file.
+# Create the data directory before SQLite opens the database file hello.
 mkdir -p "$PROJECT_ROOT/data"
 
 "$PROJECT_ROOT/.venv/bin/python" - "$DB_PATH" "$SCHEMA_PATH" <<'PY'
