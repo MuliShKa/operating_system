@@ -6,11 +6,14 @@ stores events and decisions, and a browser dashboard shows live status.
 
 > This is an educational demo, not a production system. Sensor values are
 > simulated, no physical equipment is controlled, and pending outbox events are
-> not synchronized to a remote service.
+> only synchronized to a local mock upstream receiver.
 
 ## What the demo does
 
-- Starts four Linux processes: `SensorGen`, `Processor`, `HealthMon`, and `API`.
+- Starts six Linux processes: `SensorGen`, `Processor`, `HealthMon`, `API`,
+  `Receiver` (mock upstream on `127.0.0.1:8001`), and `SyncWorker`.
+- Drains the outbox to the mock upstream while the simulated WAN is online; a
+  dashboard button cuts and restores the WAN, and no event is lost or duplicated.
 - Sends simulated water-level and voltage events through a bounded
   multiprocessing queue.
 - Persists events, rule-based decisions, and health heartbeats in SQLite.
@@ -177,9 +180,8 @@ Then retry `bash scripts/start_demo.sh`.
 - Sensor input is random simulation, not a physical device.
 - Decisions are recorded but no actuator executes them.
 - Automatic restart after a worker crash is not implemented.
-- Outbox synchronization, remote delivery, and retry/backoff are not
-  implemented; pending items stay in SQLite.
-- The dashboard does not yet offer WAN-disconnect controls.
+- The upstream is a local mock receiver (`data/upstream_receiver.db`), not a
+  real remote service; retries use a fixed 2-second interval, no backoff.
 - This demo has not been hardened for public or production use.
 
 ## Documentation
