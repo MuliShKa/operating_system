@@ -10,6 +10,7 @@ from math import isfinite
 from threading import Event
 from time import monotonic
 
+from edge.bounded_queue import BoundedSensorQueue
 from edge.models import ActuatorCommand, SensorReading
 
 
@@ -71,6 +72,35 @@ def run_periodic_control_loop(
             # Skip missed periods so one slow callback cannot cause a busy loop.
             missed_periods = int((now - next_deadline) // period_s) + 1
             next_deadline += missed_periods * period_s
+
+
+def evaluate_pending_sensor_readings(
+    sensor_queue: BoundedSensorQueue,
+    controller: "RobotSafetyController",
+    now_monotonic: float,
+    first_read_timeout_s: float = 0.01,
+    drain_timeout_s: float = 0.001,
+) -> tuple[ActuatorCommand, ...]:
+    """Apply queued LiDAR samples and return the latest safety commands.
+
+    The first read may wait briefly for a sensor sample. Later reads drain the
+    current batch, so a close obstacle cannot be hidden by a newer sample that
+    arrives before the controller examines the queue.
+    """
+    if not isfinite(now_monotonic):
+        raise ValueError("now_monotonic must be finite")
+    if not isfinite(first_read_timeout_s) or first_read_timeout_s < 0:
+        raise ValueError("first_read_timeout_s must be finite and non-negative")
+    if not isfinite(drain_timeout_s) or drain_timeout_s < 0:
+        raise ValueError("drain_timeout_s must be finite and non-negative")
+
+    latest_commands: tuple[ActuatorCommand, ...] = ()
+    reading = sensor_queue.get(timeout=first_read_timeout_s)
+    while reading is not None:
+        if reading.sensor_id == "LIDAR_PROXIMITY_M":
+            latest_commands = controller.evaluate_proximity(reading, now_monotonic)
+        reading = sensor_queue.get(timeout=drain_timeout_s)
+    return latest_commands
 
 
 class RobotSafetyController:

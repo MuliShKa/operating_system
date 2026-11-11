@@ -18,11 +18,11 @@ The safety rule follows the assignment: when LiDAR distance is **less than 0.8 m
 
 ## 2. Current Implementation Status
 
-The current code provides data models, inter-process communication helpers, a periodic scheduler, and local safety decisions. Unit tests cover these parts.
+The current code provides data models, inter-process communication helpers, a simulated sensor worker, a periodic scheduler, and local safety decisions. Unit tests cover these parts.
 
 The following work is not implemented yet:
 
-- A sensor generator or a process that reads physical LiDAR or IMU hardware.
+- A worker process that connects sensor readings to the control loop, or reads physical LiDAR and IMU hardware.
 - A supervisor that starts workers and restarts a killed process within two seconds.
 - A network outbox worker that saves events during WAN loss and delivers them later.
 - A dashboard, container setup, or systemd service for OS2.
@@ -43,11 +43,13 @@ OS2/
 │   ├── bounded_queue.py      # Process-safe, bounded sensor queue
 │   ├── control.py            # E-stop decisions, command checks, and periodic loop
 │   ├── models.py             # Validated sensor and actuator data objects
+│   ├── sensor.py             # Simulated LiDAR and IMU sensor worker
 │   └── unix_socket.py        # Local JSON request/response socket
 └── tests/
     ├── test_control.py       # Timing and safety behavior tests
     ├── test_ipc.py           # Queue and socket tests
-    └── test_models.py        # Data validation tests
+    ├── test_models.py        # Data validation tests
+    └── test_sensor.py        # Sensor values and worker lifecycle tests
 ```
 
 ## 4. Data Models: `src/edge/models.py`
@@ -101,7 +103,20 @@ next_reading = sensor_queue.get(timeout=0.1)
 
 The queue can be passed to child processes created from the same multiprocessing context. The unit test uses the `spawn` context to verify this behavior.
 
-## 6. Unix Domain Socket: `src/edge/unix_socket.py`
+## 6. Simulated Sensors: `src/edge/sensor.py`
+
+`make_simulated_readings(rng, observed_at)` creates one pair of sample values:
+
+- LiDAR distance is between `0.2` and `3.0` metres. The range includes distances below the E-stop threshold so the safety behavior can be demonstrated.
+- IMU yaw rate is between `-1.5` and `1.5` radians per second.
+
+Both readings share the same `observed_at` value because they belong to the same sample cycle. A `random.Random` instance is passed in so a test can use a fixed seed and produce repeatable values.
+
+`run_sensor_generator(sensor_queue, stop_event, interval_s, seed)` is the process worker. It creates a local random generator, publishes both sensor readings, then waits for the next sample interval. The wait uses the stop event, so a supervisor can request shutdown without waiting for a full sleep interval. The default sample interval is `50 ms`, matching the control-loop target.
+
+The worker only generates simulated data. It does not open a physical sensor device. A separate process can be started with Python's multiprocessing API and given the same `BoundedSensorQueue` used by the controller.
+
+## 7. Unix Domain Socket: `src/edge/unix_socket.py`
 
 `UnixMessageServer` and `UnixMessageClient` provide local request/response communication between processes on one host. A Unix domain socket does not require a TCP port.
 
@@ -123,7 +138,7 @@ The server creates the parent directory if it is missing and removes a stale soc
 
 Both sides use timeouts so a client that connects but sends nothing cannot block the server forever. The socket test runs only on systems that provide `socket.AF_UNIX`. Windows Python may not provide this feature; use WSL Ubuntu to run the full socket test.
 
-## 7. Control Logic: `src/edge/control.py`
+## 8. Control Logic: `src/edge/control.py`
 
 ### `JitterMonitor`
 
@@ -143,6 +158,8 @@ If the callback takes too long and misses one or more deadlines, the scheduler s
 
 The current function is a scheduling helper. A process must still supply an `on_tick` callback that reads data and applies the returned decisions.
 
+`evaluate_pending_sensor_readings(sensor_queue, controller, now_monotonic)` connects the bounded queue to the safety controller. It waits briefly for the first reading, drains the current queue batch, ignores IMU readings for the LiDAR stop rule, and evaluates every LiDAR reading in order. Processing the full batch is important: a safe reading that follows a close-obstacle reading must not hide that hazard because the E-stop is latched.
+
 ### `RobotSafetyController`
 
 `evaluate_proximity(reading, now_monotonic)` accepts only a reading named `LIDAR_PROXIMITY_M`. When the reading is below the configured threshold, the controller latches E-stop and returns two commands:
@@ -154,7 +171,7 @@ Both commands expire after the configured TTL. The latch remains active after th
 
 `accepts(command, now_monotonic)` rejects expired commands. While E-stop is latched, it also rejects non-zero motor velocity and a command that tries to clear the safety latch. A manual reset policy has not been implemented yet.
 
-## 8. Configuration: `config/node.yaml`
+## 9. Configuration: `config/node.yaml`
 
 The YAML file is the planned source for OS2 settings:
 
@@ -166,7 +183,7 @@ The YAML file is the planned source for OS2 settings:
 
 At this stage, Python constructors still use matching default values; the YAML file is not loaded by code yet. A later integration step should load and validate this file rather than duplicate its values.
 
-## 9. Tests and How to Run Them
+## 10. Tests and How to Run Them
 
 Run all tests from the `OS2` directory.
 
@@ -183,9 +200,9 @@ $env:PYTHONPATH = "src"
 python -m unittest discover -s tests -v
 ```
 
-The model tests check finite values and TTL boundaries. The queue tests check drop-oldest behavior and child-process sharing. The control tests check the 50 ms schedule, jitter, the strict 0.8 m threshold, the latched stop, and command expiry. The socket test is skipped when `AF_UNIX` is not available.
+The model tests check finite values and TTL boundaries. The queue tests check drop-oldest behavior and child-process sharing. The sensor tests check generated ranges and clean process shutdown. The control tests check the 50 ms schedule, jitter, the strict 0.8 m threshold, the latched stop, and command expiry. The socket test is skipped when `AF_UNIX` is not available.
 
-## 10. Important Safety Notes
+## 11. Important Safety Notes
 
 - This code is an educational simulation. It must not be connected to real motors without hardware safety review and additional interlocks.
 - A Python process and a general-purpose Linux scheduler do not guarantee hard real-time behavior. The 50 ms period is a target that the code measures, not a hard real-time guarantee.

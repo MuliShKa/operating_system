@@ -1,6 +1,12 @@
 import unittest
 
-from edge.control import JitterMonitor, RobotSafetyController, run_periodic_control_loop
+from edge.bounded_queue import BoundedSensorQueue
+from edge.control import (
+    JitterMonitor,
+    RobotSafetyController,
+    evaluate_pending_sensor_readings,
+    run_periodic_control_loop,
+)
 from edge.models import ActuatorCommand, SensorReading
 
 
@@ -96,6 +102,38 @@ class RobotSafetyControllerTests(unittest.TestCase):
 
         self.assertFalse(self.controller.accepts(fresh_motor_command, 20.2))
         self.assertFalse(self.controller.accepts(expired_motor_command, 20.2))
+
+
+class QueuedSensorControlTests(unittest.TestCase):
+    """Check that queued sensor samples reach the safety controller."""
+
+    def test_batch_applies_close_lidar_even_if_a_safe_sample_follows(self) -> None:
+        """A later safe sample must not erase a close obstacle in the same batch."""
+        sensor_queue = BoundedSensorQueue(maxsize=8)
+        controller = RobotSafetyController()
+        sensor_queue.put(SensorReading("IMU_YAW_RATE", 0.1, "rad/s", 1.0))
+        sensor_queue.put(SensorReading("LIDAR_PROXIMITY_M", 0.5, "m", 1.1))
+        sensor_queue.put(SensorReading("LIDAR_PROXIMITY_M", 1.2, "m", 1.2))
+
+        commands = evaluate_pending_sensor_readings(sensor_queue, controller, 20.0)
+
+        self.assertTrue(controller.estop_latched)
+        self.assertEqual(
+            [(command.actuator, command.value) for command in commands],
+            [("SAFETY_ESTOP_LATCH", True), ("MOTOR_VEL", 0.0)],
+        )
+        self.assertIsNone(sensor_queue.get(timeout=0.001))
+
+    def test_imu_reading_alone_does_not_trigger_lidar_safety(self) -> None:
+        """Yaw-rate data is not used as a LiDAR distance measurement."""
+        sensor_queue = BoundedSensorQueue(maxsize=4)
+        controller = RobotSafetyController()
+        sensor_queue.put(SensorReading("IMU_YAW_RATE", 0.1, "rad/s", 1.0))
+
+        commands = evaluate_pending_sensor_readings(sensor_queue, controller, 20.0)
+
+        self.assertEqual(commands, ())
+        self.assertFalse(controller.estop_latched)
 
 
 if __name__ == "__main__":
