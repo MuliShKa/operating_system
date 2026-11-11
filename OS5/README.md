@@ -8,7 +8,7 @@ The project also demonstrates **store-and-forward synchronization**: when the si
 
 ## Features
 
-- Generates simulated water-level and voltage readings.
+- Generates simulated water-level and voltage readingas.
 - Uses Python multiprocessing to run independent workers.
 - Passes sensor events through a bounded inter-process communication (IPC) queue.
 - Applies a local water-level rule and records decisions.
