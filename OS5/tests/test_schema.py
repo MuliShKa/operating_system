@@ -2,7 +2,7 @@
 import sqlite3
 from pathlib import Path
 
-project_dir = Path(__file__).resolve().parent
+project_dir = Path(__file__).resolve().parents[1]
 schema_path = project_dir / "sql" / "schema.sql"
 database_path = project_dir / "data" / "songdo_test.db"
 
