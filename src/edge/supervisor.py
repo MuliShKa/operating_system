@@ -53,7 +53,7 @@ def start_processes(context, channels, state):
         "SensorGen": (run_sensor_gen, (channels,)),
         "Processor": (run_processor, (channels, state)),
         "HealthMon": (_run_health_monitor, (state, channels.stop)),
-        "API": (run_api_server, (state, channels.stop)),
+        "API": (run_api_server, (state, channels.stop, channels)),
         "Receiver": (run_receiver, (channels.stop,)),
         "SyncWorker": (run_sync_worker, (channels, state)),
     }
