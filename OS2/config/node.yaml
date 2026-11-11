@@ -1,0 +1,29 @@
+# Identity shown in logs and in future process monitoring.
+name: EDGE_NODE_OS2_ROBOT
+project: Robot Edge Controller
+location: Songdo Central Park Pathways
+
+# Sensor names accepted by the OS2 data pipeline.
+sensors:
+  - LIDAR_PROXIMITY_M
+  - IMU_YAW_RATE
+
+# Commands that the simulated robot controller can issue.
+actuators:
+  - SAFETY_ESTOP_LATCH
+  - MOTOR_VEL
+
+# Timing and safety values from the OS2 assignment.
+control:
+  period_ms: 50
+  obstacle_threshold_m: 0.8
+  command_ttl_ms: 500
+
+# Local process-to-process communication settings.
+ipc:
+  bounded_queue_size: 500
+  unix_socket_path: /tmp/songdo-os2-controller.sock
+
+# Primary control must continue when the wide-area network is unavailable.
+offline:
+  durable_outbox: true
