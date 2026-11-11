@@ -11,7 +11,9 @@ from typing import Any
 DASHBOARD_PATH = Path(__file__).resolve().parents[1] / "ui" / "static" / "index.html"
 
 
-def run_api_server(state: Any, stop_event: Any) -> None:
+def run_api_server(state: Any, stop_event: Any, channels: Any) -> None:
+    # Same signature and /api/wan/* routes as the monitoring-dashboard branch.
+    wan_online = channels.wan_online
     # Demo integration: expose shared readings, decisions, and worker status.
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
@@ -33,6 +35,7 @@ def run_api_server(state: Any, stop_event: Any) -> None:
                     "recent_readings": snapshot.get("recent_readings", []),
                     "recent_decisions": snapshot.get("recent_decisions", []),
                     "pending_events": snapshot.get("pending_events", 0),
+                    "wan_online": wan_online.is_set(),
                 }
                 body = json.dumps(payload).encode("utf-8")
                 content_type = "application/json; charset=utf-8"
@@ -48,6 +51,16 @@ def run_api_server(state: Any, stop_event: Any) -> None:
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
+
+        def do_POST(self) -> None:
+            # WAN simulation: the dashboard buttons flip the shared wan_online flag.
+            actions = {"/api/wan/offline": "clear", "/api/wan/online": "set"}
+            if self.path not in actions:
+                self.send_error(404)
+                return
+            getattr(wan_online, actions[self.path])()
+            self.send_response(204)
+            self.end_headers()
 
         def log_message(self, _format: str, *_args: object) -> None:
             return
