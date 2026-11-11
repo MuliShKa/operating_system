@@ -27,6 +27,8 @@
     <section class="panel">
       <h2>Outbox</h2>
       <p><strong id="pending">0</strong> pending events</p>
+      <p>WAN: <strong id="wan">…</strong></p>
+      <button id="wan-toggle" type="button">…</button>
     </section>
   </div>
   <section class="panel">
@@ -66,11 +68,21 @@
         renderList("decisions", status.recent_decisions, item =>
           `${item.action} at ${item.value} m — ${item.reason}`);
         document.getElementById("pending").textContent = status.pending_events;
+        wanOnline = status.wan_online;
+        document.getElementById("wan").textContent = wanOnline ? "ONLINE" : "OFFLINE (DISCONNECTED)";
+        document.getElementById("wan-toggle").textContent =
+          wanOnline ? "Simulate WAN Internet Cut" : "Restore WAN Connection";
         document.getElementById("error").textContent = "";
       } catch (error) {
         document.getElementById("error").textContent = error.message;
       }
     }
+
+    let wanOnline = true;
+    document.getElementById("wan-toggle").addEventListener("click", async () => {
+      await fetch(wanOnline ? "/api/wan/offline" : "/api/wan/online", { method: "POST" });
+      refresh();
+    });
 
     refresh();
     setInterval(refresh, 1000);
