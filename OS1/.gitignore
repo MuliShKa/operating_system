@@ -1,0 +1,12 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+
+# Local database
+data/*.db
+
+# Local backup files
+*.backup
+
+# Scenario runs (per-run databases and reports)
+data/runs/

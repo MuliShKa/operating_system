@@ -1,0 +1,24 @@
+# OS1 Smart Building Edge Gateway (Songdo Convensia).
+# Values from the handbook, section 3.1. The node reads them at startup.
+name: EDGE_NODE_OS1_CONVENSIA
+latitude: 37.3888
+longitude: 126.6534
+
+# Simulated indoor sensors: uniform random between min and max.
+sensors:
+  - {id: INDOOR_CO2_PPM, unit: ppm, min: 600, max: 1400}
+  - {id: ROOM_TEMP_C, unit: "°C", min: 19, max: 28}
+
+# OS1-3: if CO2 is above 1000 ppm, open the HVAC damper to 100 %.
+# The command expires 15.0 s after the reading (monotonic clock).
+rule:
+  sensor: INDOOR_CO2_PPM
+  above: 1000
+  action: HVAC_DAMPER_PCT
+  value: 100
+  ttl_s: 15.0
+
+# OS1-4: /proc sampling period written to process_health.
+sample_period_s: 2.0
+
+queue_size: 500
