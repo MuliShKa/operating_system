@@ -13,6 +13,8 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+import sqlite3
+import os
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
@@ -24,22 +26,22 @@ from edge.priority_queue import PriorityQueue  # noqa: E402
 from edge.race_demo import RaceDemo  # noqa: E402
 from edge.unix_socket import UnixSocketClient, UnixSocketServer  # noqa: E402
 
+# =========================================================================
+# HELPER FUNCTIONS (AUXILIARES)
+# =========================================================================
 
 def put_numbers(queue: BoundedQueue, producer_id: int, count: int) -> None:
     for number in range(count):
         queue.put((producer_id, number))
 
-
 def put_numbers_then_stop(queue: BoundedQueue, count: int) -> None:
     put_numbers(queue, 0, count)
     queue.put(STOP)
-
-
+    
 def count_forever(queue: BoundedQueue, result: Synchronized) -> None:
     while True:
         if queue.get(timeout=0.2) is not None:
             result.value += 1
-
 
 def count_until_stop(queue: BoundedQueue, result: Synchronized) -> None:
     handled = 0
@@ -47,6 +49,64 @@ def count_until_stop(queue: BoundedQueue, result: Synchronized) -> None:
         handled += 1
     result.value = handled
 
+def echo_cmd(question: dict) -> dict:
+    return {"echo": question["cmd"]}
+
+def read_missing_key(question: dict) -> dict:
+    return {"value": question["missing"]}  # raises KeyError on purpose
+
+def answer_ok(question: dict) -> dict:
+    return {"ok": True}
+
+def ask_status(path: Path, answers: Queue) -> None:
+    answers.put(UnixSocketClient(path).ask({"cmd": "status"}))
+
+def worker_no_lock(shared_counter, iterations):
+    """
+    Increments a shared counter without a lock.
+    Forces a context switch using time.sleep() to create a race condition.
+    """
+    for _ in range(iterations):
+        temp = shared_counter.value
+        time.sleep(0.001)
+        shared_counter.value = temp + 1
+
+def worker_with_lock(shared_counter, lock, iterations):
+    """
+    Increments a shared counter safely using a Mutex (lock).
+    """
+    for _ in range(iterations):
+        lock.acquire()
+        try:
+            temp = shared_counter.value
+            time.sleep(0.001)
+            shared_counter.value = temp + 1
+        finally:
+            lock.release()
+            
+def deadlock_worker(lock_1, lock_2, success_flag, barrier):
+    """
+    Attempts to acquire two locks. Uses a timeout to prevent a permanent hang (Deadlock).
+    Scenario OS5-3. Uses a barrier and a hold-delay to ensure a perfect collision.
+    """
+    if lock_1.acquire(timeout=2.0):
+        # This guarantees a 100% perfect deadlock condition.
+        barrier.wait()
+        
+        if lock_2.acquire(timeout=0.2):
+            success_flag.value = 1 
+            lock_2.release()
+        else:
+            success_flag.value = 0
+            
+        # This ensures the other process also times out.
+        time.sleep(0.5)
+        lock_1.release()
+
+
+# =========================================================================
+# TEST SUITE 1: QUEUES AND LIFECYCLE 
+# =========================================================================
 
 class TestBoundedQueue(unittest.TestCase):
     def test_drop_oldest_keeps_the_newest_items(self) -> None:
@@ -76,7 +136,6 @@ class TestBoundedQueue(unittest.TestCase):
 
         self.assertEqual(queue.put_count.get_value(), 4000)
         self.assertEqual(len(received) + queue.dropped_count.get_value(), 4000)
-
 
 class TestConsumerKilled(unittest.TestCase):
     """The supervisor kills the Processor with SIGKILL, then starts a new one."""
@@ -116,7 +175,6 @@ class TestConsumerKilled(unittest.TestCase):
         self.assertFalse(stuck)
         self.assertEqual(queue.dropped_count.get_value(), 100)
 
-
 class TestShutdownSentinel(unittest.TestCase):
     def test_consumer_handles_everything_then_exits(self) -> None:
         queue = BoundedQueue(maxsize=500)
@@ -131,7 +189,6 @@ class TestShutdownSentinel(unittest.TestCase):
         self.assertFalse(consumer.is_alive())
         self.assertEqual(consumer.exitcode, 0)  # exited on its own, and was collected
         self.assertEqual(result.value, 200)
-
 
 class TestPriorityQueue(unittest.TestCase):
     def test_urgent_items_come_out_first(self) -> None:
@@ -170,53 +227,16 @@ class TestPriorityQueue(unittest.TestCase):
         self.assertEqual(demo.run(use_priority=True), list(range(10)))
 
 
+# =========================================================================
+# TEST SUITE 2: IPC AND SOCKETS
+# =========================================================================
+
 class TestIpcChannels(unittest.TestCase):
     def test_initial_state(self) -> None:
         ipc = IpcChannels()
         self.assertEqual(ipc.sensor_events.maxsize, 500)
         self.assertFalse(ipc.stop.is_set())
         self.assertTrue(ipc.wan_online.is_set())
-
-
-class TestRaceCondition(unittest.TestCase):
-    def test_without_lock_loses_updates(self) -> None:
-        demo = RaceDemo(workers=80)
-        self.assertLess(demo.run(use_lock=False), 80)
-
-    def test_with_lock_counts_exactly(self) -> None:
-        demo = RaceDemo(workers=80)
-        self.assertEqual(demo.run(use_lock=True), 80)
-
-
-class TestDeadlock(unittest.TestCase):
-    def test_opposite_lock_order_deadlocks(self) -> None:
-        result = DeadlockDemo().run(use_timeout=False)
-        self.assertTrue(result["deadlocked"])
-        self.assertEqual(result["finished_workers"], 0)
-
-    def test_acquire_timeout_recovers(self) -> None:
-        result = DeadlockDemo().run(use_timeout=True)
-        self.assertFalse(result["deadlocked"])
-        self.assertEqual(result["finished_workers"], 2)
-        self.assertGreaterEqual(result["retries"], 1)
-        self.assertGreaterEqual(result["elapsed_s"], LOCK_TIMEOUT_S)
-
-
-def echo_cmd(question: dict) -> dict:
-    return {"echo": question["cmd"]}
-
-
-def read_missing_key(question: dict) -> dict:
-    return {"value": question["missing"]}  # raises KeyError on purpose
-
-
-def answer_ok(question: dict) -> dict:
-    return {"ok": True}
-
-
-def ask_status(path: Path, answers: Queue) -> None:
-    answers.put(UnixSocketClient(path).ask({"cmd": "status"}))
-
 
 class TestUnixSocket(unittest.TestCase):
     def setUp(self) -> None:
@@ -272,47 +292,36 @@ class TestUnixSocket(unittest.TestCase):
         server.stop()
 
 
-def worker_no_lock(shared_counter, iterations):
-    """
-    Increments a shared counter without a lock.
-    Forces a context switch using time.sleep() to create a race condition.
-    """
-    for _ in range(iterations):
-        temp = shared_counter.value
-        time.sleep(0.001)
-        shared_counter.value = temp + 1
+# =========================================================================
+# TEST SUITE 3: TEAM'S CONCURRENCY CODE (W2)
+# =========================================================================
 
-def worker_with_lock(shared_counter, lock, iterations):
-    """
-    Increments a shared counter safely using a Mutex (lock).
-    """
-    for _ in range(iterations):
-        lock.acquire()
-        try:
-            temp = shared_counter.value
-            time.sleep(0.001)
-            shared_counter.value = temp + 1
-        finally:
-            lock.release()
-            
-def deadlock_worker(lock_1, lock_2, success_flag, barrier):
-    """
-    Attempts to acquire two locks. Uses a timeout to prevent a permanent hang (Deadlock).
-    Scenario OS5-3. Uses a barrier and a hold-delay to ensure a perfect collision.
-    """
-    if lock_1.acquire(timeout=2.0):
-        # This guarantees a 100% perfect deadlock condition.
-        barrier.wait()
-        
-        if lock_2.acquire(timeout=0.2):
-            success_flag.value = 1 
-            lock_2.release()
-        else:
-            success_flag.value = 0
-            
-        # This ensures the other process also times out.
-        time.sleep(0.5)
-        lock_1.release()
+class TestRaceCondition(unittest.TestCase):
+    def test_without_lock_loses_updates(self) -> None:
+        demo = RaceDemo(workers=80)
+        self.assertLess(demo.run(use_lock=False), 80)
+
+    def test_with_lock_counts_exactly(self) -> None:
+        demo = RaceDemo(workers=80)
+        self.assertEqual(demo.run(use_lock=True), 80)
+
+class TestDeadlock(unittest.TestCase):
+    def test_opposite_lock_order_deadlocks(self) -> None:
+        result = DeadlockDemo().run(use_timeout=False)
+        self.assertTrue(result["deadlocked"])
+        self.assertEqual(result["finished_workers"], 0)
+
+    def test_acquire_timeout_recovers(self) -> None:
+        result = DeadlockDemo().run(use_timeout=True)
+        self.assertFalse(result["deadlocked"])
+        self.assertEqual(result["finished_workers"], 2)
+        self.assertGreaterEqual(result["retries"], 1)
+        self.assertGreaterEqual(result["elapsed_s"], LOCK_TIMEOUT_S)
+
+
+# =========================================================================
+# TEST SUITE 4: ISOLATED OS FUNDAMENTALS (W2 & W3)
+# =========================================================================
 
 class TestOSFundamentalsOS5(unittest.TestCase):
     """
@@ -321,18 +330,11 @@ class TestOSFundamentalsOS5(unittest.TestCase):
     """
 
     def setUp(self):
-        # Setup environment before each test (e.g., clean DB)
         pass
 
     def tearDown(self):
-        # Clean up resources after each test
         pass
-        
 
-    # =========================================================================
-    # Test 1: Race condition & Deadlock tests
-    # =========================================================================
-    
     def test_race_condition_without_lock(self):
         """
         Verifies that a shared counter loses values when modified concurrently
@@ -391,16 +393,41 @@ class TestOSFundamentalsOS5(unittest.TestCase):
         self.assertEqual(flag_p1.value, 0, "Process 1 should have recovered using the 0.2s timeout.")
         self.assertEqual(flag_p2.value, 0, "Process 2 should have recovered using the 0.2s timeout.")
 
-    # =========================================================================
-    # Test 2: Database WAL mode & Atomic writes
-    # =========================================================================
-
     def test_database_wal_mode_and_atomic_writes(self):
-        pass
+        """
+        Verifies that SQLite PRAGMA journal_mode is set to WAL and tests transaction atomicity.
+        """
+        import sqlite3
+        import os
+        
+        db_path = "test_w3_node.db"
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
 
-    # =========================================================================
-    # Test 3: Rules and Command TTL (Expiry)
-    # =========================================================================
+        cursor.execute("PRAGMA journal_mode=WAL;")
+        journal_mode = cursor.execute("PRAGMA journal_mode;").fetchone()[0]
+        self.assertEqual(journal_mode.lower(), 'wal', "Database must be in WAL mode for concurrent access.")
+
+        cursor.execute("CREATE TABLE IF NOT EXISTS test_data (id INTEGER PRIMARY KEY, value TEXT)")
+        cursor.execute("DELETE FROM test_data")
+        conn.commit()
+
+        try:
+            cursor.execute("BEGIN TRANSACTION")
+            cursor.execute("INSERT INTO test_data (value) VALUES ('success1')")
+            raise RuntimeError("Simulated crash")
+            cursor.execute("INSERT INTO test_data (value) VALUES ('success2')")
+            conn.commit()
+        except RuntimeError:
+            conn.rollback()
+
+        cursor.execute("SELECT COUNT(*) FROM test_data")
+        count = cursor.fetchone()[0]
+        self.assertEqual(count, 0, "Atomic write failed: Partial data was saved.")
+
+        conn.close()
+        if os.path.exists(db_path):
+            os.remove(db_path)
 
     def test_water_level_rule_below_threshold(self):
         pass
@@ -411,10 +438,6 @@ class TestOSFundamentalsOS5(unittest.TestCase):
     def test_command_ttl_expiration(self):
         pass
 
-    # =========================================================================
-    # Test 4 and 5: Failures, Backup & Offline Demo validation
-    # =========================================================================
-
     def test_process_restart_recovery(self):
         pass
 
@@ -423,6 +446,7 @@ class TestOSFundamentalsOS5(unittest.TestCase):
 
     def test_offline_demo_data_consistency(self):
         pass
+
 
 if __name__ == '__main__':
     unittest.main()
