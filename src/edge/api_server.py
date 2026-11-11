@@ -12,10 +12,13 @@ DASHBOARD_PATH = Path(__file__).resolve().parents[1] / "ui" / "static" / "index.
 
 
 def run_api_server(state: Any, stop_event: Any) -> None:
-    # Demo integration: expose shared readings, decisions, and worker status.
+    # Serve a local dashboard and a JSON snapshot from the supervisor's shared
+    # state; this server is intentionally bound to loopback, not a public NIC.
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
             if self.path == "/api/status":
+                # Copy shared state once so this response is built from a
+                # consistent snapshot of worker and sensor information.
                 snapshot = dict(state)
                 worker_names = {
                     key.split(":", 1)[1]
@@ -37,6 +40,7 @@ def run_api_server(state: Any, stop_event: Any) -> None:
                 body = json.dumps(payload).encode("utf-8")
                 content_type = "application/json; charset=utf-8"
             elif self.path in ("/", "/index.html"):
+                # Serve the static dashboard for the browser's root page.
                 body = DASHBOARD_PATH.read_bytes()
                 content_type = "text/html; charset=utf-8"
             else:
@@ -52,6 +56,8 @@ def run_api_server(state: Any, stop_event: Any) -> None:
         def log_message(self, _format: str, *_args: object) -> None:
             return
 
+    # Poll with a timeout so the stop event is checked regularly and shutdown
+    # does not wait forever for another HTTP request.
     server = HTTPServer(("127.0.0.1", 8000), Handler)
     server.timeout = 0.5
     try:

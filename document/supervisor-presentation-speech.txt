@@ -1,0 +1,15 @@
+Hello, my name is MUHAMED ALI. The idea of this project is to demonstrate how an edge node can handle sensor data locally: generate readings, apply a rule, save the results, and show them on a dashboard. It is an educational simulation. The sensor values are generated, and decisions are recorded only; no real equipment is controlled.
+
+My contribution covered several parts of this demo: environment setup, sensor data generation, event processing, health monitoring, the local API, and process supervision.
+
+First, setup.sh prepares the development environment. It checks the required system tools, creates an isolated Python virtual environment, installs the project dependencies, and initializes the SQLite database using the shared schema. It also enables and verifies WAL mode, which allows database reads and writes to work more smoothly together.
+
+SensorGen simulates water-level and mains-voltage readings. It packages each value with a sensor ID, unit, and timestamp, then sends the events through a shared queue.
+
+Processor consumes events from that queue. It assigns each event a unique ID, converts its timestamp to UTC, saves the reading, and updates the recent readings shown on the dashboard. For water-level events, it applies the edge decision rule and records valid decisions. It also drains events already in the queue during shutdown.
+
+HealthMon periodically writes a heartbeat to the database and updates the latest health-check time. The API serves the dashboard and provides a JSON status endpoint with worker statuses, process IDs, recent readings, decisions, and the pending-event count. It listens only on the local machine.
+
+Finally, supervisor.py connects these components. It creates shared communication channels, initializes the database before starting workers, records their status and process IDs, and monitors them. On Ctrl+C or SIGTERM, it requests a graceful shutdown, waits up to three seconds, then terminates and reaps any worker that is still running. If a worker fails unexpectedly, the supervisor stops the others and reports an error. Automatic worker restart is not implemented yet.
+
+The pending outbox is stored locally, but remote synchronization is not implemented yet. Together, these components demonstrate the full local data flow from setup to dashboard. Thank you for listening.

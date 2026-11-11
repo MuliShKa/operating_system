@@ -1,4 +1,4 @@
-"""Start and shut down the connected edge-node demo workers."""
+"""Prepare, monitor, and shut down the connected edge-node worker processes."""
 
 from __future__ import annotations
 
@@ -20,17 +20,20 @@ _shutdown_requested = False
 
 
 def _worker_main(process_name, target, args, state) -> None:
-    # Demo integration: publish worker lifecycle to the dashboard's shared state.
+    # Publish lifecycle metadata before calling the worker so the dashboard can
+    # distinguish a process that is starting from one that is running.
     state[f"worker_status:{process_name}"] = "running"
     state[f"worker_pid:{process_name}"] = os.getpid()
     try:
         target(*args)
     finally:
+        # The finally block also records a stopped state if the worker raises.
         state[f"worker_status:{process_name}"] = "stopped"
 
 
 def _run_health_monitor(state, stop_event) -> None:
-    # Demo integration: persist a health heartbeat while the node is running.
+    # Store a persistent heartbeat and a live timestamp for the dashboard.
+    # Event.wait keeps the five-second interval interruptible during shutdown.
     while not stop_event.is_set():
         storage.save_process_health("HealthMon", "running")
         state["last_health_check"] = time.time()
@@ -44,7 +47,8 @@ def _request_shutdown(_signum: int, _frame: object) -> None:
 
 
 def start_processes(context, channels, state):
-    # Demo integration: connect the sensor, processor, health monitor, and API.
+    # Keep each worker's entry point and arguments together so all processes
+    # receive the same IPC channels and shared state where needed.
     targets = {
         "SensorGen": (run_sensor_gen, (channels,)),
         "Processor": (run_processor, (channels, state)),
@@ -54,6 +58,7 @@ def start_processes(context, channels, state):
     workers = {}
     for process_name in PROCESS_NAMES:
         target, args = targets[process_name]
+        # Set this before start() so the dashboard has a status during startup.
         state[f"worker_status:{process_name}"] = "starting"
         process = context.Process(
             name=process_name,
@@ -66,11 +71,14 @@ def start_processes(context, channels, state):
 
 
 def stop_processes(workers, channels) -> None:
+    # Ask cooperative workers to exit first, allowing them to finish cleanup.
     channels.stop.set()
     for process in workers.values():
         process.join(SHUTDOWN_TIMEOUT_SECONDS)
         if process.is_alive():
+            # Bound shutdown time if a worker ignores the stop request.
             process.terminate()
+            # Reap the terminated child so it does not remain as a zombie.
             process.join()
 
 
@@ -80,14 +88,16 @@ def main() -> int:
     signal.signal(signal.SIGTERM, _request_shutdown)
     signal.signal(signal.SIGINT, _request_shutdown)
 
+    # Use an explicit start method for consistent, isolated child initialization.
     context = multiprocessing.get_context("spawn")
     manager = context.Manager()
     state = manager.dict()
+    # Create IPC resources once and share them with every worker process.
     channels = IpcChannels(context)
     workers = {}
 
     try:
-        # Demo integration: initialize the database before the Processor starts.
+        # The Processor writes events immediately, so prepare the database first.
         storage.initialize_database()
         state["pending_events"] = storage.get_pending_event_count()
         workers = start_processes(context, channels, state)
@@ -98,6 +108,8 @@ def main() -> int:
         )
 
         while not _shutdown_requested:
+            # Detect dead workers promptly; this version reports a failure and
+            # shuts down the remaining workers rather than restarting the child.
             exited = [
                 name for name, process in workers.items()
                 if not process.is_alive()
