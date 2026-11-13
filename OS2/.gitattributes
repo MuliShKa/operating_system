@@ -1,1 +1,3 @@
 *.sh text eol=lf
+*.csv text eol=lf
+*.geojson text eol=lf

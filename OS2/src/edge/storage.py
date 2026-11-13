@@ -95,6 +95,26 @@ def pending_events(db_path: str | Path, limit: int) -> list[dict]:
     ]
 
 
+def latest_outbox_sequence(db_path: str | Path) -> int:
+    """Return the last allocated outbox sequence as a checkpoint."""
+    with connect(db_path) as connection:
+        return connection.execute(
+            "SELECT COALESCE(MAX(seq), 0) FROM outbox"
+        ).fetchone()[0]
+
+
+def outbox_event_ids_after(db_path: str | Path, sequence: int) -> list[str]:
+    """Return event IDs created after an outbox sequence checkpoint."""
+    if sequence < 0:
+        raise ValueError("sequence must be non-negative")
+    with connect(db_path) as connection:
+        rows = connection.execute(
+            "SELECT event_id FROM outbox WHERE seq > ? ORDER BY seq",
+            (sequence,),
+        ).fetchall()
+    return [row["event_id"] for row in rows]
+
+
 def mark_sent(db_path: str | Path, event_ids: Iterable[str]) -> int:
     with connect(db_path) as connection:
         cursor = connection.executemany(

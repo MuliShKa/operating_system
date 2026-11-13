@@ -159,22 +159,34 @@ def scenario_5_offline_conservation(offline_seconds: int) -> None:
         "outbox to drain before WAN cut",
     )
     _request("/api/network", {"online": False})
+    checkpoint = storage.latest_outbox_sequence(config.database)
+    receiver = UnixMessageClient(config.upstream_socket, timeout=3)
     try:
-        time.sleep(offline_seconds)
-        pending = storage.pending_events(config.database, 100000)
-        event_ids = [event["event_id"] for event in pending]
+        deadline = time.monotonic() + offline_seconds
+        while time.monotonic() < deadline:
+            status = receiver.request({"cmd": "status"})
+            if status.get("wan_online") is not False:
+                raise RuntimeError("WAN became online before the outage ended")
+            time.sleep(min(5, max(0, deadline - time.monotonic())))
+
+        event_ids = storage.outbox_event_ids_after(config.database, checkpoint)
         if not event_ids:
             raise RuntimeError("no events accumulated while WAN was offline")
+        pending_ids = {
+            event["event_id"]
+            for event in storage.pending_events(config.database, len(event_ids))
+        }
+        if not set(event_ids).issubset(pending_ids):
+            raise RuntimeError("offline events were acknowledged before WAN recovery")
     finally:
         _request("/api/network", {"online": True})
 
-    client = UnixMessageClient(config.upstream_socket, timeout=3)
     acknowledged = set()
 
     def all_events_received() -> bool:
         for offset in range(0, len(event_ids), config.sync_batch_size):
             batch = event_ids[offset : offset + config.sync_batch_size]
-            response = client.request({"cmd": "contains", "event_ids": batch})
+            response = receiver.request({"cmd": "contains", "event_ids": batch})
             present = response.get("present")
             if not isinstance(present, list):
                 raise RuntimeError(f"invalid upstream lookup response: {response}")
