@@ -110,8 +110,12 @@ class RobotSafetyController:
         self,
         obstacle_threshold_m: float = 0.8,
         command_ttl_s: float = 0.5,
+        estop_latched: bool = False,
     ) -> None:
-        """Set the obstacle threshold and validity period for issued commands."""
+        """Set the obstacle threshold and validity period for issued commands.
+
+        estop_latched restores a latch saved before a process restart.
+        """
         if not isfinite(obstacle_threshold_m) or obstacle_threshold_m <= 0:
             raise ValueError("obstacle_threshold_m must be finite and positive")
         if not isfinite(command_ttl_s) or command_ttl_s <= 0:
@@ -119,7 +123,7 @@ class RobotSafetyController:
 
         self.obstacle_threshold_m = obstacle_threshold_m
         self.command_ttl_s = command_ttl_s
-        self._estop_latched = False
+        self._estop_latched = estop_latched
         self._command_ids = count(1)
 
     @property

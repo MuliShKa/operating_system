@@ -23,7 +23,16 @@ control:
 ipc:
   bounded_queue_size: 500
   unix_socket_path: /tmp/songdo-os2-controller.sock
+  upstream_socket_path: /tmp/songdo-os2-upstream.sock
 
 # Primary control must continue when the wide-area network is unavailable.
 offline:
   durable_outbox: true
+  database_path: data/os2.db
+  upstream_database_path: data/upstream.db
+  sync_batch_size: 50
+
+# Supervisor restart policy for crashed workers.
+supervisor:
+  restart_burst: 5
+  restart_window_s: 10
