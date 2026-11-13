@@ -23,8 +23,8 @@ rule:
 inventory:
   cache: sources/vworld/os1_convensia_buildings.geojson
   fixture: sources/vworld/os1_convensia_buildings.fixture.geojson
-  # VWorld 2D data API layer ID for buildings. Not verified yet: look it up in
-  # the VWorld data catalog (category 건물·시설) before running edge.vworld_fetch.
+  # Optional: VWorld 2D data API layer ID for buildings, only for edge.vworld_fetch.
+  # Not used for the submission (no VWorld key, see README). Unverified if set.
   vworld_layer: null
   # Search box around the node for the download, in degrees.
   fetch_radius_deg: 0.003

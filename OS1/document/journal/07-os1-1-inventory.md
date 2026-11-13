@@ -25,6 +25,14 @@ Data:
 - `vworld_fetch.py` builds the VWorld 2D data API request (GetFeature, BOX around the node,
   EPSG:4326, JSON). Not run against the live API yet.
 
+Decision (2026-11-13): no VWorld data for the submission. Creating a VWorld key needs a
+Korean PASS identity check; it failed for Estève's foreign-registered (MVNO) phone line.
+The professor's assessment asks for "fixture-backed ingestion" for OS1-1, so the fixture
+is the delivered cache, labelled as such everywhere. `vworld_fetch.py` stays as an
+optional, untested path. Sentence for the report: "VWorld was not downloaded: the Korean
+identity check (PASS) failed for our phone line; a labelled fixture and the download
+script are provided."
+
 Evidence (2026-11-13, 10 s): inventory 3 rows from the fixture, node inside
 FIXTURE-CONVENSIA, 11 CO2 + 11 temperature readings all tagged, units and ranges right.
 6/6 checks. The container also loads it. Report: `document/results/os1_1_ingestion.json`.

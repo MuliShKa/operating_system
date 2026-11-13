@@ -57,7 +57,11 @@ coordinates, labelled in the file as *not* VWorld data. To use real data:
 3. `VWORLD_API_KEY=... PYTHONPATH=src .venv/bin/python -m edge.vworld_fetch` (never commit the key).
 4. Fill `retrieved_at` and `status` in `sources/source_registry.csv`.
 
-The fetch script has not been run against the live API yet (no key).
+**Decision (2026-11-13): the project ships with the fixture.** A VWorld key needs a
+Korean identity check (PASS), which failed for our foreign-registered phone line. The
+professor's assessment asks for "fixture-backed ingestion" for OS1-1, which is what is
+delivered. The fetch script is kept as an optional path and was never run against the
+live API.
 
 | Scenario | Command | What it proves |
 |---|---|---|
@@ -83,6 +87,6 @@ Details and test evidence: `document/journal/06-deployment.md`.
 
 - The supervisor stops the node when a worker dies (worker-level restart is OS5-2);
   systemd and Docker restart the whole node instead.
-- OS1-1 uses the fixture until real VWorld data is fetched.
+- OS1-1 uses a labelled fixture, not real VWorld footprints (see "VWorld building data").
 - No browser runner for all 25 scenarios yet (team-wide UI requirement); OS1 has a CLI runner.
 - Table names follow the team schema (`events`, `outbox`); the handbook calls them `sensor_events` and `durable_outbox`.
