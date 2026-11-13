@@ -80,6 +80,7 @@ def evaluate_pending_sensor_readings(
     now_monotonic: float,
     first_read_timeout_s: float = 0.01,
     drain_timeout_s: float = 0.001,
+    on_reading: Callable[[SensorReading], None] | None = None,
 ) -> tuple[ActuatorCommand, ...]:
     """Apply queued LiDAR samples and return the latest safety commands.
 
@@ -97,6 +98,8 @@ def evaluate_pending_sensor_readings(
     latest_commands: tuple[ActuatorCommand, ...] = ()
     reading = sensor_queue.get(timeout=first_read_timeout_s)
     while reading is not None:
+        if on_reading is not None:
+            on_reading(reading)
         if reading.sensor_id == "LIDAR_PROXIMITY_M":
             latest_commands = controller.evaluate_proximity(reading, now_monotonic)
         reading = sensor_queue.get(timeout=drain_timeout_s)
@@ -159,6 +162,8 @@ class RobotSafetyController:
     def accepts(self, command: ActuatorCommand, now_monotonic: float) -> bool:
         """Reject expired commands and movement that conflicts with a latched stop."""
         if command.is_expired(now_monotonic):
+            return False
+        if now_monotonic < command.issued_at:
             return False
         if command.actuator == "SAFETY_ESTOP_LATCH" and command.value is True:
             self._estop_latched = True

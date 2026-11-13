@@ -1,0 +1,46 @@
+services:
+  robot:
+    build:
+      context: ..
+      dockerfile: container/Dockerfile
+    environment:
+      OS2_API_HOST: 0.0.0.0
+    command: ["python", "-m", "edge.supervisor"]
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - os2-data:/app/data
+      - os2-ipc:/tmp/songdo-os2
+    read_only: true
+    restart: unless-stopped
+    cpus: 1.0
+    mem_limit: 256m
+    pids_limit: 32
+
+  upstream:
+    build:
+      context: ..
+      dockerfile: container/Dockerfile
+    command: ["python", "-m", "edge.upstream_receiver"]
+    volumes:
+      - os2-data:/app/data
+      - os2-ipc:/tmp/songdo-os2
+    read_only: true
+    restart: unless-stopped
+    cpus: 0.5
+    mem_limit: 128m
+    pids_limit: 16
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import socket; s=socket.socket(socket.AF_UNIX); s.connect('/tmp/songdo-os2/upstream.sock'); s.close()"
+      interval: 10s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+
+volumes:
+  os2-data:
+  os2-ipc:

@@ -20,14 +20,21 @@ class SensorReading:
 
     def __post_init__(self) -> None:
         """Reject invalid data as soon as the reading is created."""
-        if not self.sensor_id.strip():
+        if not isinstance(self.sensor_id, str) or not self.sensor_id.strip():
             raise ValueError("sensor_id must not be empty")
-        if not self.unit.strip():
+        if not isinstance(self.unit, str) or not self.unit.strip():
             raise ValueError("unit must not be empty")
-        # NaN and infinity are not useful sensor values or timestamps.
-        if not isfinite(self.value):
+        if (
+            isinstance(self.value, bool)
+            or not isinstance(self.value, (int, float))
+            or not isfinite(self.value)
+        ):
             raise ValueError("sensor value must be finite")
-        if not isfinite(self.observed_at):
+        if (
+            isinstance(self.observed_at, bool)
+            or not isinstance(self.observed_at, (int, float))
+            or not isfinite(self.observed_at)
+        ):
             raise ValueError("observed_at must be finite")
 
 
@@ -43,14 +50,22 @@ class ActuatorCommand:
 
     def __post_init__(self) -> None:
         """Check names, values, and the command's time window."""
-        if not self.command_id.strip():
+        if not isinstance(self.command_id, str) or not self.command_id.strip():
             raise ValueError("command_id must not be empty")
-        if not self.actuator.strip():
+        if not isinstance(self.actuator, str) or not self.actuator.strip():
             raise ValueError("actuator must not be empty")
-        # Boolean values are valid for latch outputs; numeric outputs must be finite.
-        if not isinstance(self.value, bool) and not isfinite(self.value):
+        if not isinstance(self.value, bool) and (
+            not isinstance(self.value, (int, float)) or not isfinite(self.value)
+        ):
             raise ValueError("command value must be finite")
-        if not isfinite(self.issued_at) or not isfinite(self.expires_at):
+        if (
+            isinstance(self.issued_at, bool)
+            or not isinstance(self.issued_at, (int, float))
+            or isinstance(self.expires_at, bool)
+            or not isinstance(self.expires_at, (int, float))
+            or not isfinite(self.issued_at)
+            or not isfinite(self.expires_at)
+        ):
             raise ValueError("command timestamps must be finite")
         # A zero-length or negative validity window can never be accepted.
         if self.expires_at <= self.issued_at:
@@ -58,6 +73,10 @@ class ActuatorCommand:
 
     def is_expired(self, now: float) -> bool:
         """Return True at or after the expiry deadline."""
-        if not isfinite(now):
+        if (
+            isinstance(now, bool)
+            or not isinstance(now, (int, float))
+            or not isfinite(now)
+        ):
             raise ValueError("current time must be finite")
         return now >= self.expires_at

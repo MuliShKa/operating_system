@@ -4,3 +4,10 @@ __pycache__/
 data/*.db
 data/*.db-wal
 data/*.db-shm
+data/*.db-journal
+data/backups/*.db
+data/backups/*.db-wal
+data/backups/*.db-shm
+data/backups/*.db-journal
+data/*.lock
+.venv/

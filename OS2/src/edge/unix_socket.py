@@ -5,7 +5,10 @@ object and receives one JSON response before the connection closes.
 """
 
 import json
+import logging
 import socket
+import stat
+import sqlite3
 import threading
 from collections.abc import Callable
 from pathlib import Path
@@ -14,6 +17,8 @@ Message = dict[str, object]
 MessageHandler = Callable[[Message], Message]
 CLIENT_TIMEOUT_S = 1.0  # Do not let a silent client block the server forever.
 ACCEPT_TIMEOUT_S = 0.1  # Wake the server periodically so it can notice shutdown.
+
+log = logging.getLogger(__name__)
 
 
 class UnixMessageServer:
@@ -31,10 +36,20 @@ class UnixMessageServer:
         """Create the local socket file and start its background server thread."""
         if not hasattr(socket, "AF_UNIX"):
             raise OSError("Unix domain sockets are not supported on this platform")
-        # Make sure the parent folder exists before binding the socket path.
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        # Remove a stale file that may remain after an unclean previous exit.
-        self.path.unlink(missing_ok=True)
+        if self.path.exists():
+            if not stat.S_ISSOCK(self.path.lstat().st_mode):
+                raise OSError(f"refusing to replace non-socket path: {self.path}")
+            probe = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            probe.settimeout(CLIENT_TIMEOUT_S)
+            try:
+                probe.connect(str(self.path))
+            except (ConnectionRefusedError, FileNotFoundError):
+                self.path.unlink(missing_ok=True)
+            else:
+                raise OSError(f"Unix socket is already serving: {self.path}")
+            finally:
+                probe.close()
 
         server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         server.bind(str(self.path))
@@ -81,8 +96,15 @@ class UnixMessageServer:
             if not isinstance(request, dict):
                 raise ValueError("request must be a JSON object")
             response = self.handler(request)
-        except (ConnectionError, OSError, ValueError, json.JSONDecodeError) as error:
+        except (
+            ConnectionError,
+            OSError,
+            ValueError,
+            sqlite3.Error,
+        ) as error:
             # Return a useful error to the client without stopping the server loop.
+            if isinstance(error, sqlite3.Error):
+                log.exception("Unix socket handler failed to access SQLite")
             response = {"error": str(error)}
 
         try:

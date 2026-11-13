@@ -1,0 +1,10 @@
+[Unit]
+Description=Hourly OS2 SQLite backup
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+Unit=songdo-edge-backup.service
+
+[Install]
+WantedBy=timers.target

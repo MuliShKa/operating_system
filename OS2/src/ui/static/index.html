@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101a22">
+  <title>OS2 | Robot Edge Controller</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: #101a22;
+      color: #e9f1f3;
+      font-synthesis: none;
+      --panel: #182630;
+      --line: #2b3c47;
+      --muted: #9aadb6;
+      --mint: #72e0ba;
+      --amber: #ffcb75;
+      --red: #ff7e79;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: radial-gradient(ellipse at 20% 0%, #1b3440 0, transparent 38%), #101a22; }
+    main { width: min(1180px, calc(100% - 36px)); margin: 0 auto; padding: 38px 0 56px; }
+    header { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; margin-bottom: 28px; }
+    .eyebrow { color: var(--mint); font-size: 11px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+    h1 { margin: 9px 0 7px; font-size: clamp(26px, 4vw, 40px); letter-spacing: -.04em; }
+    .subtitle, .muted { color: var(--muted); }
+    .subtitle { margin: 0; font-size: 14px; }
+    .status { display: inline-flex; align-items: center; gap: 9px; border: 1px solid var(--line); border-radius: 999px; padding: 10px 14px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 12px currentColor; }
+    .online .dot { background: var(--mint); }
+    .offline .dot { background: var(--red); }
+    .grid { display: grid; gap: 14px; }
+    .metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 14px; }
+    .two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .panel, .metric { background: linear-gradient(145deg, #1a2a34, #15232c); border: 1px solid var(--line); border-radius: 15px; }
+    .metric { padding: 19px 20px; }
+    .metric-label, .section-title { color: var(--muted); font-size: 11px; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
+    .metric-value { margin-top: 12px; font-size: 28px; font-weight: 760; letter-spacing: -.04em; }
+    .metric-note { margin-top: 5px; color: var(--muted); font-size: 12px; }
+    .panel { padding: 20px; min-width: 0; }
+    .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 16px; }
+    .section-title { margin: 0; }
+    .workers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .worker { display: flex; justify-content: space-between; gap: 10px; padding: 13px; background: #122029; border: 1px solid #263943; border-radius: 10px; }
+    .worker-name { font-size: 13px; font-weight: 700; }
+    .worker-meta { margin-top: 5px; color: var(--muted); font-size: 11px; }
+    .worker-status { color: var(--mint); font-size: 11px; text-transform: uppercase; }
+    .worker-status.stopped { color: var(--red); }
+    .sensor-list { display: grid; gap: 10px; }
+    .sensor { display: flex; align-items: center; justify-content: space-between; padding: 13px; background: #122029; border: 1px solid #263943; border-radius: 10px; }
+    .sensor-name { color: var(--muted); font-size: 12px; }
+    .sensor-value { font-size: 18px; font-weight: 750; }
+    .safety { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px; background: #122029; border: 1px solid #263943; border-radius: 10px; }
+    .safety.trip { border-color: #9e4e4b; background: #321f24; }
+    .safety-label { font-weight: 750; }
+    .safety-value { margin-top: 4px; color: var(--muted); font-size: 12px; }
+    button { border: 0; border-radius: 9px; background: var(--mint); color: #09241d; padding: 10px 14px; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+    button.secondary { background: #263b46; color: #e9f1f3; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    .events { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
+    .events th { color: var(--muted); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
+    .events th, .events td { padding: 10px 8px; border-bottom: 1px solid #293943; }
+    .events tr:last-child td { border-bottom: 0; }
+    .delivery { color: var(--mint); }
+    .pending { color: var(--amber); }
+    .error { color: var(--red); min-height: 18px; font-size: 12px; }
+    .map-frame { width: 100%; overflow: hidden; border: 1px solid #263943; border-radius: 10px; background: #122029; }
+    .pathway-map { display: block; width: 100%; height: auto; }
+    .pathway { fill: none; stroke: var(--mint); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+    .pathway.cycleway { stroke: #77b9ff; }
+    .pathway.steps { stroke: var(--amber); }
+    .map-note { margin: 12px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .map-note a { color: var(--mint); }
+    @media (max-width: 760px) {
+      main { width: min(100% - 24px, 560px); padding-top: 24px; }
+      header { flex-direction: column; }
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .two, .workers { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <div class="eyebrow">Songdo Edge Intelligence / OS2</div>
+        <h1>Robot Edge Controller</h1>
+        <p class="subtitle">Central Park Pathways · local safety and offline telemetry</p>
+      </div>
+      <div id="wan-status" class="status"><span class="dot"></span><span>Checking upstream</span></div>
+    </header>
+
+    <section class="grid metrics" aria-label="System overview">
+      <article class="metric">
+        <div class="metric-label">Outbox pending</div>
+        <div id="outbox-pending" class="metric-value">—</div>
+        <div id="outbox-total" class="metric-note">Loading local events</div>
+      </article>
+      <article class="metric">
+        <div class="metric-label">Upstream received</div>
+        <div id="upstream-count" class="metric-value">—</div>
+        <div class="metric-note">Idempotent event acknowledgements</div>
+      </article>
+      <article class="metric">
+        <div class="metric-label">LiDAR proximity</div>
+        <div id="lidar-value" class="metric-value">—</div>
+        <div class="metric-note">Emergency stop threshold: 0.8 m</div>
+      </article>
+      <article class="metric">
+        <div class="metric-label">Yaw rate</div>
+        <div id="imu-value" class="metric-value">—</div>
+        <div class="metric-note">Latest simulated IMU reading</div>
+      </article>
+    </section>
+
+    <section class="grid" style="margin-bottom:14px">
+      <article class="panel">
+        <div class="panel-head">
+          <h2 class="section-title">Songdo Central Park pathways</h2>
+          <span id="map-count" class="muted">Loading map data</span>
+        </div>
+        <div class="map-frame">
+          <svg id="pathway-map" class="pathway-map" viewBox="0 0 640 400" role="img" aria-label="OpenStreetMap pathway geometry reference"></svg>
+        </div>
+        <p id="map-error" class="error" role="status"></p>
+        <p class="map-note">
+          Reference geometry only; localization and route planning are not implemented.
+          <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors · ODbL 1.0</a>
+        </p>
+      </article>
+    </section>
+
+    <section class="grid two">
+      <article class="panel">
+        <div class="panel-head"><h2 class="section-title">Worker processes</h2><span id="node-name" class="muted"></span></div>
+        <div id="workers" class="workers"></div>
+      </article>
+      <article class="panel">
+        <div class="panel-head"><h2 class="section-title">Safety state</h2><span id="safety-link" class="muted"></span></div>
+        <div id="safety" class="safety">
+          <div><div class="safety-label">Emergency stop</div><div id="safety-detail" class="safety-value">Waiting for controller</div></div>
+          <div id="motor-value" class="sensor-value">0.00 m/s</div>
+        </div>
+        <div class="panel-head" style="margin-top:20px">
+          <h2 class="section-title">Safety demonstration</h2>
+          <button id="obstacle-button" class="secondary">Inject 0.5 m obstacle</button>
+        </div>
+        <p id="sensor-error" class="error" role="status"></p>
+        <div class="panel-head" style="margin-top:20px">
+          <h2 class="section-title">WAN simulation</h2>
+          <button id="wan-toggle" disabled>Loading</button>
+        </div>
+        <p id="wan-error" class="error" role="status"></p>
+      </article>
+    </section>
+
+    <section class="grid two" style="margin-top:14px">
+      <article class="panel">
+        <div class="panel-head"><h2 class="section-title">Recent local events</h2><span class="muted">Newest first</span></div>
+        <div style="overflow-x:auto">
+          <table class="events"><thead><tr><th>Event</th><th>Created</th><th>Delivery</th></tr></thead><tbody id="events"></tbody></table>
+        </div>
+      </article>
+      <article class="panel">
+        <div class="panel-head"><h2 class="section-title">Node operation</h2><span class="muted">Offline-first</span></div>
+        <p class="subtitle">Sensor generation, obstacle decisions, and the actuator safety latch run locally. When the simulated WAN is offline, telemetry stays in SQLite until the upstream receiver acknowledges it.</p>
+        <p id="refresh-time" class="metric-note">Waiting for first status update</p>
+      </article>
+    </section>
+  </main>
+  <script>
+    const byId = (id) => document.getElementById(id);
+    const formatBytes = (bytes) => bytes == null ? "—" : `${(bytes / 1048576).toFixed(1)} MB`;
+    const showReading = (reading) => reading ? `${Number(reading.value).toFixed(2)} ${reading.unit}` : "—";
+
+    function renderWorkers(processes) {
+      const root = byId("workers");
+      root.replaceChildren();
+      for (const process of processes) {
+        const card = document.createElement("div");
+        card.className = "worker";
+        const details = document.createElement("div");
+        const name = document.createElement("div");
+        name.className = "worker-name";
+        name.textContent = process.process_name;
+        const meta = document.createElement("div");
+        meta.className = "worker-meta";
+        meta.textContent = `PID ${process.pid ?? "—"} · ${process.cpu_percent == null ? "—" : process.cpu_percent.toFixed(1) + "% CPU"} · ${formatBytes(process.rss_bytes)}`;
+        const status = document.createElement("div");
+        status.className = `worker-status${process.alive ? "" : " stopped"}`;
+        status.textContent = process.alive ? "Running" : process.status;
+        details.append(name, meta);
+        card.append(details, status);
+        root.append(card);
+      }
+    }
+
+    function renderEvents(events) {
+      const root = byId("events");
+      root.replaceChildren();
+      for (const event of events) {
+        const row = document.createElement("tr");
+        const type = document.createElement("td");
+        type.textContent = event.event_type;
+        const created = document.createElement("td");
+        created.textContent = new Date(event.created_at).toLocaleTimeString();
+        const delivery = document.createElement("td");
+        delivery.className = event.sent_at ? "delivery" : "pending";
+        delivery.textContent = event.sent_at ? "Delivered" : "Queued";
+        row.append(type, created, delivery);
+        root.append(row);
+      }
+      if (!events.length) {
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+        cell.colSpan = 3;
+        cell.textContent = "No local events yet";
+        row.append(cell);
+        root.append(row);
+      }
+    }
+
+    function renderMap(data) {
+      if (data.type !== "FeatureCollection" || !Array.isArray(data.bbox) || data.bbox.length !== 4) {
+        throw new Error("Pathway map data has an invalid GeoJSON shape");
+      }
+      const [minLon, minLat, maxLon, maxLat] = data.bbox;
+      const longitudeScale = Math.cos(((minLat + maxLat) / 2) * Math.PI / 180);
+      const mapWidth = (maxLon - minLon) * longitudeScale;
+      const mapHeight = maxLat - minLat;
+      if (mapWidth <= 0 || mapHeight <= 0 || !Array.isArray(data.features)) {
+        throw new Error("Pathway map bounds are invalid");
+      }
+
+      const width = 640;
+      const height = 400;
+      const padding = 12;
+      const scale = Math.min((width - padding * 2) / mapWidth, (height - padding * 2) / mapHeight);
+      const offsetX = (width - mapWidth * scale) / 2;
+      const offsetY = (height - mapHeight * scale) / 2;
+      const root = byId("pathway-map");
+      root.replaceChildren();
+
+      for (const feature of data.features) {
+        if (feature.geometry?.type !== "LineString" || feature.geometry.coordinates.length < 2) continue;
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        const points = feature.geometry.coordinates.map(([lon, lat], index) => {
+          const x = offsetX + (lon - minLon) * longitudeScale * scale;
+          const y = offsetY + (maxLat - lat) * scale;
+          return `${index === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`;
+        });
+        const highway = feature.properties?.highway;
+        const style = highway === "steps" ? "steps" : highway === "cycleway" ? "cycleway" : "";
+        path.setAttribute("class", `pathway ${style}`);
+        path.setAttribute("d", points.join(" "));
+        root.append(path);
+      }
+      byId("map-count").textContent = `${data.features.length} OSM pathways · data updated ${new Date(data.metadata.retrieved_at).toLocaleDateString()}`;
+    }
+
+    async function loadMap() {
+      try {
+        const response = await fetch("/api/map", { cache: "no-store" });
+        if (!response.ok) throw new Error("Pathway map request failed");
+        renderMap(await response.json());
+      } catch (error) {
+        byId("map-count").textContent = "Map unavailable";
+        byId("map-error").textContent = error.message;
+      }
+    }
+
+    function renderStatus(data) {
+      byId("node-name").textContent = data.node;
+      byId("outbox-pending").textContent = data.outbox.pending;
+      byId("outbox-total").textContent = `${data.outbox.sent} delivered · ${data.outbox.total} total`;
+      byId("upstream-count").textContent = data.wan.received_events ?? "—";
+      byId("lidar-value").textContent = showReading(data.sensors.LIDAR_PROXIMITY_M);
+      byId("imu-value").textContent = showReading(data.sensors.IMU_YAW_RATE);
+      renderWorkers(data.processes);
+
+      const safety = byId("safety");
+      safety.classList.toggle("trip", data.safety.latched);
+      byId("safety-detail").textContent = data.safety.latched ? "LATCHED · motion blocked" : "Clear · local monitoring active";
+      byId("safety-link").textContent = data.safety.available ? "Safety monitor connected" : "Safety monitor unavailable";
+      byId("motor-value").textContent = `${Number(data.safety.motor_vel ?? 0).toFixed(2)} m/s`;
+
+      const wan = byId("wan-status");
+      const online = data.wan.receiver_reachable && data.wan.online;
+      wan.className = `status ${online ? "online" : "offline"}`;
+      wan.lastElementChild.textContent = !data.wan.receiver_reachable ? "UPSTREAM UNREACHABLE" : online ? "WAN: ONLINE" : "WAN: OFFLINE";
+      const toggle = byId("wan-toggle");
+      toggle.disabled = !data.wan.receiver_reachable;
+      toggle.className = online ? "secondary" : "";
+      toggle.textContent = online ? "Simulate WAN cut" : "Restore WAN connection";
+      byId("wan-error").textContent = data.wan.error ?? "";
+      byId("refresh-time").textContent = `Updated ${new Date().toLocaleTimeString()} · refreshes every second`;
+    }
+
+    async function refresh() {
+      try {
+        const [statusResponse, eventsResponse] = await Promise.all([
+          fetch("/api/status", { cache: "no-store" }),
+          fetch("/api/events", { cache: "no-store" })
+        ]);
+        if (!statusResponse.ok || !eventsResponse.ok) throw new Error("Dashboard API request failed");
+        renderStatus(await statusResponse.json());
+        renderEvents(await eventsResponse.json());
+      } catch (error) {
+        byId("wan-error").textContent = error.message;
+      }
+    }
+
+    byId("wan-toggle").addEventListener("click", async () => {
+      const offline = byId("wan-toggle").textContent.includes("cut");
+      byId("wan-error").textContent = "";
+      try {
+        const response = await fetch("/api/network", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ online: !offline })
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error ?? "Could not change WAN state");
+        await refresh();
+      } catch (error) {
+        byId("wan-error").textContent = error.message;
+      }
+    });
+
+    byId("obstacle-button").addEventListener("click", async () => {
+      byId("sensor-error").textContent = "";
+      try {
+        const response = await fetch("/api/sensor", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sensor_id: "LIDAR_PROXIMITY_M", value: 0.5 })
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error ?? "Could not inject sensor reading");
+        byId("sensor-error").textContent = "Obstacle sample queued. E-stop will latch below 0.8 m.";
+        await refresh();
+      } catch (error) {
+        byId("sensor-error").textContent = error.message;
+      }
+    });
+
+    loadMap();
+    refresh();
+    window.setInterval(refresh, 1000);
+  </script>
+</body>
+</html>

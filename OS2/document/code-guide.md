@@ -18,39 +18,120 @@ The safety rule follows the assignment: when LiDAR distance is **less than 0.8 m
 
 ## 2. Current Implementation Status
 
-The current code provides data models, inter-process communication helpers, a simulated sensor worker, a periodic scheduler, and local safety decisions. Unit tests cover these parts.
+The current implementation includes simulated sensors, a controller, a safety
+monitor, a durable outbox sync worker, a loopback HTTP dashboard, an optional
+mock upstream receiver, Linux service/container files, and five OS2 acceptance
+scenarios. The supervisor records process lifecycle in SQLite, restarts failed
+workers within the configured budget, and stops its child processes on SIGINT
+or SIGTERM. The dashboard can inject a simulated obstacle and toggle the mock
+WAN. The sync worker retains events until the upstream receiver acknowledges
+them; receiver writes are idempotent by event ID.
 
-The following work is not implemented yet:
-
-- A worker process that connects sensor readings to the control loop, or reads physical LiDAR and IMU hardware.
-- A supervisor that starts workers and restarts a killed process within two seconds.
-- A network outbox worker that saves events during WAN loss and delivers them later.
-- A dashboard, container setup, or systemd service for OS2.
-- Loading `config/node.yaml` automatically into the Python classes.
-
-Because of these limits, the current project is a tested foundation, not a complete robot application. It does not control real motors.
+The node is still a software simulation. Physical LiDAR/IMU hardware, robot
+localization, route planning, and real motor control are not implemented. An
+OpenStreetMap pathway extract is bundled for reference, but it is not surveyed
+or validated for robot navigation. OSM attribution, license, retrieval
+timestamp, and extract scope are recorded in the dataset and
+`sources/source_registry.csv`.
 
 ## 3. Folder Layout
 
 ```text
 OS2/
-├── config/
-│   └── node.yaml             # Robot identity, sensors, safety values, and IPC settings
-├── document/
-│   └── code-guide.md         # This guide
+├── config/node.yaml                  # Node, safety, IPC, sync, and API settings
+├── container/                        # Ubuntu image and robot/upstream Compose services
+├── sources/songdo_central_park_pathways.geojson # OSM pathways (ODbL 1.0)
+├── document/code-guide.md            # Architecture and operator guide
+├── scenarios/run_os2_scenarios.py   # Five OS2 acceptance demonstrations
+├── scripts/                          # Preflight, setup, launch, and locked backup
+├── sources/source_registry.csv      # OS2 route-data source search and status
 ├── src/edge/
-│   ├── __init__.py           # Marks edge as a Python package
-│   ├── bounded_queue.py      # Process-safe, bounded sensor queue
-│   ├── control.py            # E-stop decisions, command checks, and periodic loop
-│   ├── models.py             # Validated sensor and actuator data objects
-│   ├── sensor.py             # Simulated LiDAR and IMU sensor worker
-│   └── unix_socket.py        # Local JSON request/response socket
-└── tests/
-    ├── test_control.py       # Timing and safety behavior tests
-    ├── test_ipc.py           # Queue and socket tests
-    ├── test_models.py        # Data validation tests
-    └── test_sensor.py        # Sensor values and worker lifecycle tests
+│   ├── api_server.py                 # HTTP API and local dashboard server
+│   ├── bounded_queue.py              # Process-safe bounded sensor queue
+│   ├── config.py                     # YAML configuration loader
+│   ├── control.py                    # Safety decisions and periodic scheduler
+│   ├── maintenance.py                # Online SQLite backup utility
+│   ├── models.py                     # Validated sensor and actuator data
+│   ├── sensor.py                     # Simulated LiDAR/IMU worker
+│   ├── storage.py                    # WAL outbox, health, and persistent state
+│   ├── supervisor.py                 # Worker restart and shutdown handling
+│   ├── sync_worker.py                # Durable outbox delivery and retry
+│   ├── upstream_receiver.py          # Optional idempotent mock receiver
+│   ├── unix_socket.py                # Local JSON request/response IPC
+│   └── workers.py                    # Controller and safety monitor processes
+├── sql/                              # Local and upstream SQLite schemas
+├── systemd/                          # User services and hourly backup timer
+└── tests/                            # Unit and multiprocessing test suite
 ```
+
+## 3.1 Run the local process pipeline
+
+On Ubuntu 24.04 or WSL2, from the `OS2` directory:
+
+```bash
+scripts/preflight.sh
+scripts/setup.sh
+scripts/start_demo.sh
+```
+
+Open `http://127.0.0.1:8000`. The supervisor starts the safety monitor, sensor
+generator, controller, sync worker, and dashboard. Press Ctrl+C for a graceful
+shutdown. Unexpected worker exits are restarted up to `restart_burst` times per
+`restart_window_s`; exceeding that limit stops the service. Health transitions
+are recorded in `process_health`.
+
+The WAN buttons toggle delivery at the mock receiver. The obstacle button
+injects a simulated 0.5 m LiDAR sample to demonstrate the latched E-stop.
+To start only the receiver separately, use:
+
+```bash
+PYTHONPATH=src python3 -m edge.upstream_receiver
+```
+
+## 3.2 Run the OS2 acceptance scenarios
+
+With the demo running, execute:
+
+```bash
+PYTHONPATH=src python3 scenarios/run_os2_scenarios.py
+```
+
+The runner checks all five OS2 scenarios, including process restart within two
+seconds and event delivery after a ten-minute simulated WAN outage. Use
+`--offline-seconds N` only for a shorter development demonstration.
+
+## 3.3 Linux setup and deployment
+
+The OCI image and two-service Compose setup are in `container/`. From the
+`OS2` directory, use `docker compose -f container/compose.yaml up --build`.
+The host dashboard port is bound to loopback.
+
+The systemd user units and hourly online-backup timer are in `systemd/`; adjust
+the unit working directory if the repository is not at
+`$HOME/operating_system/OS2`. Install and enable them with:
+
+```bash
+mkdir -p ~/.config/systemd/user
+cp systemd/songdo-edge@.service systemd/songdo-edge-upstream@.service \
+  systemd/songdo-edge-backup.service systemd/songdo-edge-backup.timer \
+  ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now songdo-edge@OS2.service \
+  songdo-edge-upstream@OS2.service songdo-edge-backup.timer
+```
+
+## 3.4 OSM pathway reference map
+
+The dashboard loads `/api/map`, which serves
+`sources/songdo_central_park_pathways.geojson`. The extract contains 390
+OpenStreetMap pathway ways within the recorded bounding box. The dashboard
+renders the geometry as a reference overview and displays the required
+attribution and ODbL 1.0 link.
+
+The extract is not surveyed or validated for navigation. The project still
+does not provide robot localization, route planning, or physical movement.
+Use the GeoJSON metadata and `sources/source_registry.csv` for source,
+retrieval, license, and scope details.
 
 ## 4. Data Models: `src/edge/models.py`
 
@@ -173,15 +254,21 @@ Both commands expire after the configured TTL. The latch remains active after th
 
 ## 9. Configuration: `config/node.yaml`
 
-The YAML file is the planned source for OS2 settings:
+`edge.config.load_config()` reads the runtime settings from the YAML file:
 
-- `name`, `project`, and `location` identify the node.
-- `sensors` and `actuators` list supported input and output names.
+- `name` identifies the node in the dashboard.
 - `control` contains the 50 ms period, 0.8 m threshold, and 500 ms TTL.
-- `ipc` contains queue capacity and the Unix socket path.
-- `offline.durable_outbox` records the offline-persistence requirement.
+- `ipc` contains queue capacity and the local Unix socket paths.
+- `offline` contains the local and mock-upstream database paths and sync batch
+  size. Both databases use durable SQLite storage.
+- `supervisor` sets the restart limit and rolling time window.
+- `api` sets the dashboard bind address and port. `OS2_API_HOST` and
+  `OS2_API_PORT` environment variables can override these two values.
 
-At this stage, Python constructors still use matching default values; the YAML file is not loaded by code yet. A later integration step should load and validate this file rather than duplicate its values.
+`project`, `location`, `sensors`, and `actuators` are descriptive entries; the
+current runtime uses fixed sensor and actuator names in its workers.
+Relative database paths are resolved under the OS2 project directory. IPC
+socket paths must be absolute and distinct.
 
 ## 10. Tests and How to Run Them
 
@@ -207,5 +294,8 @@ The model tests check finite values and TTL boundaries. The queue tests check dr
 - This code is an educational simulation. It must not be connected to real motors without hardware safety review and additional interlocks.
 - A Python process and a general-purpose Linux scheduler do not guarantee hard real-time behavior. The 50 ms period is a target that the code measures, not a hard real-time guarantee.
 - The socket path in the config is local to a Linux host. It is not a network address.
-- Local control should not wait for WAN access. Durable offline event storage and reconnection behavior are still future work for OS2.
+- Local control does not wait for WAN access. Events remain in the durable
+  local outbox until the optional mock upstream acknowledges them; this
+  demonstrates retry and recovery behavior but is not a production cloud
+  receiver.
 - The current E-stop latch has no reset function. Do not add an automatic reset when the obstacle disappears.

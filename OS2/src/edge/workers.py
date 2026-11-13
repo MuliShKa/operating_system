@@ -1,5 +1,6 @@
 """Controller and safety monitor processes (sensor -> queue -> controller -> socket -> safety)."""
 
+import json
 import logging
 import os
 from dataclasses import asdict
@@ -16,7 +17,7 @@ from edge.control import (
     evaluate_pending_sensor_readings,
     run_periodic_control_loop,
 )
-from edge.models import ActuatorCommand
+from edge.models import ActuatorCommand, SensorReading
 from edge.unix_socket import UnixMessageClient, UnixMessageServer
 
 CRUISE_VELOCITY = 0.5
@@ -37,6 +38,18 @@ class Actuators:
         self.motor_expires_at = 0.0
 
     def apply(self, command: ActuatorCommand, now: float) -> bool:
+        if command.actuator == "MOTOR_VEL":
+            if (
+                isinstance(command.value, bool)
+                or not isinstance(command.value, (int, float))
+                or not 0 <= command.value <= CRUISE_VELOCITY
+            ):
+                return False
+        elif command.actuator == "SAFETY_ESTOP_LATCH":
+            if not isinstance(command.value, bool):
+                return False
+        else:
+            return False
         if not self.guard.accepts(command, now):
             return False
         if command.actuator == "MOTOR_VEL":
@@ -62,8 +75,7 @@ def parse_commands(message: dict) -> list[ActuatorCommand]:
 
 
 def save_latch(config: NodeConfig) -> None:
-    storage.save_state(config.database, LATCH_KEY, "1")
-    storage.record_event(config.database, "ESTOP_LATCHED", {"node": config.name})
+    storage.latch_estop(config.database, config.name)
     log.warning("E-stop latched")
 
 
@@ -94,6 +106,20 @@ def cruise_command(command_id: str, now: float, ttl_s: float) -> ActuatorCommand
     return ActuatorCommand(command_id, "MOTOR_VEL", CRUISE_VELOCITY, now, now + ttl_s)
 
 
+def zero_velocity_command(command_id: str, now: float, ttl_s: float) -> ActuatorCommand:
+    return ActuatorCommand(command_id, "MOTOR_VEL", 0.0, now, now + ttl_s)
+
+
+def estop_commands(command_id: str, now: float, ttl_s: float) -> tuple[ActuatorCommand, ...]:
+    expires_at = now + ttl_s
+    return (
+        ActuatorCommand(
+            f"{command_id}-latch", "SAFETY_ESTOP_LATCH", True, now, expires_at
+        ),
+        ActuatorCommand(f"{command_id}-stop", "MOTOR_VEL", 0.0, now, expires_at),
+    )
+
+
 def telemetry(config: NodeConfig, ticks: int, jitters: list[float], latched: bool) -> dict:
     return {
         "node": config.name,
@@ -112,18 +138,50 @@ def run_controller(
     ids = (f"ctl-{os.getpid()}-{n}" for n in count(1))
     jitters: list[float] = []
     ticks = 0
+    last_lidar_reading: SensorReading | None = None
 
     def on_tick(now: float, jitter: float | None) -> None:
-        nonlocal safety, ticks
+        nonlocal safety, ticks, last_lidar_reading
         ticks += 1
         if jitter is not None:
             jitters.append(jitter)
 
-        commands = evaluate_pending_sensor_readings(sensor_queue, safety, now)
-        if not safety.estop_latched:
+        latest_readings: dict[str, str] = {}
+
+        def remember_reading(reading: SensorReading) -> None:
+            nonlocal last_lidar_reading
+            latest_readings[reading.sensor_id] = json.dumps(
+                {
+                    "value": reading.value,
+                    "unit": reading.unit,
+                    "observed_at": reading.observed_at,
+                },
+                separators=(",", ":"),
+            )
+            if reading.sensor_id == "LIDAR_PROXIMITY_M":
+                last_lidar_reading = reading
+
+        evaluate_pending_sensor_readings(
+            sensor_queue, safety, now, on_reading=remember_reading
+        )
+        if latest_readings:
+            storage.save_states(config.database, latest_readings)
+        if safety.estop_latched:
+            commands = estop_commands(next(ids), now, config.command_ttl_s)
+        elif (
+            last_lidar_reading is not None
+            and 0 <= now - last_lidar_reading.observed_at <= config.command_ttl_s
+            and last_lidar_reading.value >= config.obstacle_threshold_m
+        ):
             commands = (cruise_command(next(ids), now, config.command_ttl_s),)
+        else:
+            commands = (
+                zero_velocity_command(next(ids), now, config.command_ttl_s),
+            )
         try:
-            reply = client.request({"cmd": "apply", "commands": [asdict(c) for c in commands]})
+            reply = client.request(
+                {"cmd": "apply", "commands": [asdict(c) for c in commands]}
+            )
         except (OSError, ValueError) as error:
             log.warning("safety monitor unreachable: %s", error)
             reply = {}
