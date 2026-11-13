@@ -10,3 +10,11 @@
   `EDGE_DATABASE_PATH`.
 - **Root `.gitignore` gone from main** – it moved to `OS5/`, so `.venv/`, `data/` and
   `project/` show as untracked at the repository root. Do not `git add -A` from the root.
+- **Port 8001 already taken** (2026-11-13) – another program on the machine listens on
+  8001 and answers 404, so the receiver could not start. Fix: `EDGE_API_PORT` and
+  `EDGE_RECEIVER_PORT` move the node; the official runs used receiver port 8011.
+- **Root `.venv` gone** – the team removed it. `bash OS1/scripts/setup.sh` now creates
+  `OS1/.venv` (ignored by git).
+- **Wrong `.gitignore` patterns** – `./OS1/project` and `./project` ignore nothing: git does
+  not understand a leading `./`, and paths are relative to the `.gitignore` folder. The
+  working pattern is `/project/`.

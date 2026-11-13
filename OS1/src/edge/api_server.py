@@ -8,7 +8,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import Any
 
-from edge.node_config import NODE_NAME, RULE
+from edge.node_config import API_PORT, NODE_NAME, RULE
 
 
 DASHBOARD_PATH = Path(__file__).resolve().parents[1] / "ui" / "static" / "index.html"
@@ -110,7 +110,7 @@ def run_api_server(state: Any, stop_event: Any, channels: Any) -> None:
         def log_message(self, _format: str, *_args: object) -> None:
             return
 
-    server = HTTPServer(("127.0.0.1", 8000), Handler)
+    server = HTTPServer(("127.0.0.1", API_PORT), Handler)
     server.timeout = 0.5
     try:
         while not stop_event.is_set():

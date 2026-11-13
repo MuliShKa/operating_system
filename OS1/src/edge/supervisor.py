@@ -12,6 +12,7 @@ from edge.SensorGen import run_sensor_gen
 from edge.actuator import run_actuator
 from edge.api_server import run_api_server
 from edge.ipc import IpcChannels
+from edge.node_config import API_PORT
 from edge.proc_sampler import run_proc_sampler
 from edge.processor import run_processor
 from edge.receiver import run_receiver
@@ -114,7 +115,7 @@ def main() -> int:
         workers = start_processes(context, channels, state)
         print(
             "Started workers: "
-            f"{', '.join(workers)}. Dashboard: http://127.0.0.1:8000",
+            f"{', '.join(workers)}. Dashboard: http://127.0.0.1:{API_PORT}",
             flush=True,
         )
 

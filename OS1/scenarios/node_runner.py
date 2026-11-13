@@ -24,8 +24,9 @@ from urllib.request import Request, urlopen
 
 OS1_DIR = Path(__file__).resolve().parents[1]
 RUNS_DIR = OS1_DIR / "data" / "runs"
-API_URL = "http://127.0.0.1:8000"
-API_PORT, RECEIVER_PORT = 8000, 8001
+API_PORT = int(os.environ.get("EDGE_API_PORT", "8000"))
+RECEIVER_PORT = int(os.environ.get("EDGE_RECEIVER_PORT", "8001"))
+API_URL = f"http://127.0.0.1:{API_PORT}"
 START_TIMEOUT_S = 30.0
 STOP_TIMEOUT_S = 15.0
 EXPECTED_WORKERS = 8
@@ -66,12 +67,17 @@ def running_node(run_dir: Path, extra_env: dict[str, str] | None = None):
     """Start the supervisor in the background, wait until ready, stop it at the end."""
     for port in (API_PORT, RECEIVER_PORT):
         if _port_in_use(port):
-            raise SystemExit(f"Port {port} is already used: stop the other node first.")
+            raise SystemExit(
+                f"Port {port} is already used. Stop the other program, or move the node with "
+                "EDGE_API_PORT / EDGE_RECEIVER_PORT."
+            )
 
     env = {
         **os.environ,
         "PYTHONPATH": str(OS1_DIR / "src"),
         "EDGE_DATABASE_PATH": str(run_dir / "node.db"),
+        "EDGE_API_PORT": str(API_PORT),
+        "EDGE_RECEIVER_PORT": str(RECEIVER_PORT),
         **(extra_env or {}),
     }
     log = (run_dir / "node.log").open("w", encoding="utf-8")

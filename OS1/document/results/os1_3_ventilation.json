@@ -1,0 +1,36 @@
+{
+  "scenario": "OS1-3",
+  "normal": {
+    "co2_readings": 16,
+    "high_readings": 7,
+    "high_with_command": 7,
+    "low_with_command": 0,
+    "applied": 7,
+    "expired": 0,
+    "damper_pct_at_end": 100.0,
+    "run_dir": "data/runs/os1_3-delay0-20261113-203526"
+  },
+  "slow_actuator": {
+    "co2_readings": 22,
+    "high_readings": 11,
+    "high_with_command": 11,
+    "low_with_command": 0,
+    "applied": 0,
+    "expired": 1,
+    "damper_pct_at_end": 0,
+    "run_dir": "data/runs/os1_3-delay16-20261113-203543"
+  },
+  "checks": {
+    "999.9 ppm: no command": true,
+    "1000 ppm: no command (rule is strictly above)": true,
+    "1000.1 ppm: HVAC_DAMPER_PCT = 100": true,
+    "expiry is 15.0 s after the reading": true,
+    "fresh command is not expired at 14.9 s": true,
+    "command is expired at 15.1 s": true,
+    "live: every reading above 1000 ppm issued one command": true,
+    "live: no command for readings at or below 1000 ppm": true,
+    "live: fresh commands applied, none expired": true,
+    "slow actuator: stale commands rejected (COMMAND_EXPIRED)": true,
+    "slow actuator: damper never moved": true
+  }
+}

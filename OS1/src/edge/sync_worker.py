@@ -8,9 +8,10 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from edge import storage
+from edge.node_config import RECEIVER_PORT
 
 
-RECEIVER_URL = "http://127.0.0.1:8001/api/events"
+RECEIVER_URL = f"http://127.0.0.1:{RECEIVER_PORT}/api/events"
 BATCH_SIZE = 50
 RETRY_INTERVAL_SECONDS = 2
 REQUEST_TIMEOUT_SECONDS = 3

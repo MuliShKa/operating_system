@@ -7,6 +7,7 @@ import sqlite3
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
+from edge.node_config import RECEIVER_PORT
 from edge.storage import DATABASE_PATH
 
 
@@ -51,7 +52,7 @@ def accept_event(event: dict[str, Any]) -> bool:
     return cursor.rowcount == 1
 
 
-def run_receiver(stop_event: Any, host: str = "127.0.0.1", port: int = 8001) -> None:
+def run_receiver(stop_event: Any, host: str = "127.0.0.1", port: int = RECEIVER_PORT) -> None:
     """Run the local HTTP endpoint used by the synchronization worker."""
     initialize_receiver_database()
 
@@ -107,4 +108,6 @@ def run_receiver(stop_event: Any, host: str = "127.0.0.1", port: int = 8001) -> 
         print("Mock upstream receiver stopped.", flush=True)
 
 if __name__ == "__main__":
-    run_receiver()
+    import threading
+
+    run_receiver(threading.Event())

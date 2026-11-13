@@ -12,3 +12,6 @@ data/*.db
 data/runs/
 
 /project/
+
+# Virtual environment
+.venv/

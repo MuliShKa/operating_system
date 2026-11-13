@@ -36,7 +36,9 @@ python -m unittest discover -s tests -v
 
 Each scenario starts its own node with a fresh database in `data/runs/<scenario>-<time>/`
 (node.db, node_upstream.db, node.log, report.json) and stops it at the end.
-Ports 8000 and 8001 must be free.
+Ports 8000 (API) and 8001 (receiver) must be free, or move them with
+`EDGE_API_PORT` / `EDGE_RECEIVER_PORT` (example: `EDGE_RECEIVER_PORT=8011 python scenarios/os1_5_wan_outage.py`).
+Official reports are kept in `document/results/`.
 
 | Scenario | Command | What it proves |
 |---|---|---|
@@ -44,7 +46,7 @@ Ports 8000 and 8001 must be free.
 | OS1-4 | `python scenarios/os1_4_contention.py` | 30 s idle then 30 s with CPU burners; every worker sampled every 2.0 s; per-worker CPU, RSS, voluntary and involuntary context switches. |
 | OS1-5 | `python scenarios/os1_5_wan_outage.py` | 10 min WAN cut: events and decisions continue, nothing is sent, then the backlog drains with 0 lost and 0 duplicates. |
 
-Use the project virtual environment (`.venv/bin/python`) or any Python 3.12 with `requirements.txt`.
+Create the environment once with `bash scripts/setup.sh`, then use `.venv/bin/python`.
 
 ## Known limits
 
