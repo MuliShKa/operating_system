@@ -45,3 +45,20 @@ CREATE INDEX IF NOT EXISTS idx_outbox_status
 
 CREATE INDEX IF NOT EXISTS idx_events_time
     ON events(event_time);
+
+-- OS1-1: building inventory read from the cached VWorld GeoJSON.
+CREATE TABLE IF NOT EXISTS building_inventory (
+    building_id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    properties TEXT NOT NULL,
+    geometry TEXT NOT NULL,
+    source TEXT NOT NULL,
+    loaded_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Handbook table names, as views over the team schema.
+CREATE VIEW IF NOT EXISTS sensor_events AS
+    SELECT event_id, event_type AS sensor_id, event_time, payload, created_at FROM events;
+
+CREATE VIEW IF NOT EXISTS durable_outbox AS
+    SELECT * FROM outbox;

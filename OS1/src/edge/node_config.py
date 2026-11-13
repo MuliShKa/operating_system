@@ -14,6 +14,10 @@ NODE_NAME = CONFIG["name"]
 SENSORS = CONFIG["sensors"]
 RULE = CONFIG["rule"]
 SAMPLE_PERIOD_S = float(CONFIG["sample_period_s"])
+LATITUDE = float(CONFIG["latitude"])
+LONGITUDE = float(CONFIG["longitude"])
+INVENTORY = CONFIG["inventory"]
+PROJECT_DIR = CONFIG_PATH.parents[1]
 QUEUE_SIZE = int(CONFIG["queue_size"])
 
 # Local ports. The environment can move them when the defaults are taken.

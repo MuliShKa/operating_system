@@ -17,6 +17,9 @@ def _iso(timestamp: float) -> str:
 
 def run_processor(channels: Any, state: Any) -> None:
     # Persist each reading, apply the CO2 rule and hand the command to the Actuator.
+    # OS1-1: every reading is tagged with the building found in the inventory.
+    building = (state.get("building") or {}).get("node_building") or {}
+    building_id = building.get("building_id")
     while not channels.stop.is_set() or channels.sensor_events.size():
         event = channels.sensor_events.get(timeout=0.2)
         if event is None:
@@ -28,6 +31,7 @@ def run_processor(channels: Any, state: Any) -> None:
             "sensor_id": event.sensor_id,
             "value": event.value,
             "unit": event.unit,
+            "building_id": building_id,
         }
         storage.save_event(event_id, event.sensor_id, event_time, payload)
         state["pending_events"] = storage.get_pending_event_count()

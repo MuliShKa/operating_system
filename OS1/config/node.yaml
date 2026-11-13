@@ -18,6 +18,17 @@ rule:
   value: 100
   ttl_s: 15.0
 
+# OS1-1: cached VWorld building inventory (read once at startup, no network).
+# The node uses `cache` if it exists, otherwise the labelled fixture.
+inventory:
+  cache: sources/vworld/os1_convensia_buildings.geojson
+  fixture: sources/vworld/os1_convensia_buildings.fixture.geojson
+  # VWorld 2D data API layer ID for buildings. Not verified yet: look it up in
+  # the VWorld data catalog (category 건물·시설) before running edge.vworld_fetch.
+  vworld_layer: null
+  # Search box around the node for the download, in degrees.
+  fetch_radius_deg: 0.003
+
 # OS1-4: /proc sampling period written to process_health.
 sample_period_s: 2.0
 

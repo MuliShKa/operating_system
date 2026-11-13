@@ -57,6 +57,7 @@ def run_api_server(state: Any, stop_event: Any, channels: Any) -> None:
 
                 payload = {
                     "node": {"name": NODE_NAME, "rule": RULE},
+                    "building": snapshot.get("building"),
                     "workers": workers,
                     "recent_readings": snapshot.get("recent_readings", []),
                     "recent_decisions": snapshot.get("recent_decisions", []),

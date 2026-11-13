@@ -143,6 +143,12 @@ button:disabled {
     </section>
 
     <section class="card">
+        <div class="label">Building (cached inventory)</div>
+        <div class="value" id="building" style="font-size:1.1rem">—</div>
+        <p class="detail" id="building-source">VWorld cache or fixture</p>
+    </section>
+
+    <section class="card">
         <div class="label">HVAC Damper</div>
         <div class="value" id="damper">—</div>
         <p class="detail" id="actuator-counts">Applied / expired commands</p>
@@ -328,6 +334,12 @@ button:disabled {
 
             document.getElementById("temperature").textContent =
                 temperature ? `${Number(temperature.value).toFixed(1)} °C` : "—";
+
+            const inv = data.building || {};
+            document.getElementById("building").textContent =
+                inv.node_building ? inv.node_building.name : (inv.ok === false ? "Inventory error" : "—");
+            document.getElementById("building-source").textContent =
+                inv.ok ? `${inv.buildings} buildings · source: ${inv.source}` : (inv.error || "No inventory");
 
             document.getElementById("damper").textContent =
                 `${Number(data.damper_pct ?? 0).toFixed(0)} %`;

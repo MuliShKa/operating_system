@@ -17,6 +17,7 @@ COPY config ./config
 COPY sql ./sql
 COPY src ./src
 COPY scripts ./scripts
+COPY sources ./sources
 
 # Run as an unprivileged user; the database lives in a volume.
 RUN useradd --create-home --uid 10001 edge \

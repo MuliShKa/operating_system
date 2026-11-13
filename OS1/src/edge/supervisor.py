@@ -7,7 +7,7 @@ import os
 import signal
 import time
 
-from edge import storage
+from edge import inventory, storage
 from edge.SensorGen import run_sensor_gen
 from edge.actuator import run_actuator
 from edge.api_server import run_api_server
@@ -112,6 +112,10 @@ def main() -> int:
         # Demo integration: initialize the database before the Processor starts.
         storage.initialize_database()
         state["pending_events"] = storage.get_pending_event_count()
+        # OS1-1: read the cached building inventory once, before the sensors start.
+        building = inventory.load_inventory()
+        state["building"] = building
+        print(f"Building inventory: {building}", flush=True)
         workers = start_processes(context, channels, state)
         print(
             "Started workers: "

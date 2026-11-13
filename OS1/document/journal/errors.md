@@ -22,3 +22,7 @@
   found`). Used `python -c "os.kill(pid, SIGKILL)"` instead.
 - **Clicked the dashboard in Estève's Chrome** – not wanted. Dashboard checks are done with
   `curl` on `/api/status` from now on.
+- **OS1-2 result too perfect** – a fixed 5 ms pause gave 1/80 on every trial. Switched to
+  a random 0–5 ms pause (see 08).
+- **VWorld layer name unknown** – two web searches did not confirm the building layer ID,
+  so it is left empty in `config/node.yaml` and the node uses a labelled fixture.

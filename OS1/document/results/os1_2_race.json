@@ -1,0 +1,136 @@
+{
+  "scenario": "OS1-2",
+  "turnstiles": 80,
+  "trials": 5,
+  "unprotected": [
+    {
+      "mode": "unprotected",
+      "expected": 80,
+      "final": 14,
+      "lost_updates": 66,
+      "seconds": 0.971,
+      "exit_codes_ok": true
+    },
+    {
+      "mode": "unprotected",
+      "expected": 80,
+      "final": 17,
+      "lost_updates": 63,
+      "seconds": 1.025,
+      "exit_codes_ok": true
+    },
+    {
+      "mode": "unprotected",
+      "expected": 80,
+      "final": 16,
+      "lost_updates": 64,
+      "seconds": 1.033,
+      "exit_codes_ok": true
+    },
+    {
+      "mode": "unprotected",
+      "expected": 80,
+      "final": 20,
+      "lost_updates": 60,
+      "seconds": 1.055,
+      "exit_codes_ok": true
+    },
+    {
+      "mode": "unprotected",
+      "expected": 80,
+      "final": 18,
+      "lost_updates": 62,
+      "seconds": 1.094,
+      "exit_codes_ok": true
+    }
+  ],
+  "mutex": [
+    {
+      "mode": "mutex",
+      "expected": 80,
+      "final": 80,
+      "lost_updates": 0,
+      "seconds": 0.988,
+      "exit_codes_ok": true
+    },
+    {
+      "mode": "mutex",
+      "expected": 80,
+      "final": 80,
+      "lost_updates": 0,
+      "seconds": 1.099,
+      "exit_codes_ok": true
+    },
+    {
+      "mode": "mutex",
+      "expected": 80,
+      "final": 80,
+      "lost_updates": 0,
+      "seconds": 1.274,
+      "exit_codes_ok": true
+    },
+    {
+      "mode": "mutex",
+      "expected": 80,
+      "final": 80,
+      "lost_updates": 0,
+      "seconds": 1.268,
+      "exit_codes_ok": true
+    },
+    {
+      "mode": "mutex",
+      "expected": 80,
+      "final": 80,
+      "lost_updates": 0,
+      "seconds": 1.341,
+      "exit_codes_ok": true
+    }
+  ],
+  "no_pause_information_only": [
+    {
+      "mode": "no-pause",
+      "expected": 80,
+      "final": 58,
+      "lost_updates": 22,
+      "seconds": 1.375,
+      "exit_codes_ok": true
+    },
+    {
+      "mode": "no-pause",
+      "expected": 80,
+      "final": 52,
+      "lost_updates": 28,
+      "seconds": 1.257,
+      "exit_codes_ok": true
+    },
+    {
+      "mode": "no-pause",
+      "expected": 80,
+      "final": 54,
+      "lost_updates": 26,
+      "seconds": 1.328,
+      "exit_codes_ok": true
+    },
+    {
+      "mode": "no-pause",
+      "expected": 80,
+      "final": 59,
+      "lost_updates": 21,
+      "seconds": 1.266,
+      "exit_codes_ok": true
+    },
+    {
+      "mode": "no-pause",
+      "expected": 80,
+      "final": 56,
+      "lost_updates": 24,
+      "seconds": 1.16,
+      "exit_codes_ok": true
+    }
+  ],
+  "checks": {
+    "unprotected counter < 80 in every trial": true,
+    "mutex counter == 80 in every trial": true,
+    "every writer exited cleanly (joined, exit code 0)": true
+  }
+}
