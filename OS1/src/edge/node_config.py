@@ -18,4 +18,7 @@ QUEUE_SIZE = int(CONFIG["queue_size"])
 
 # Local ports. The environment can move them when the defaults are taken.
 API_PORT = int(os.environ.get("EDGE_API_PORT", "8000"))
+# Only the local machine by default; the container sets 0.0.0.0 so the
+# published port reaches the API (compose still binds it to 127.0.0.1 on the host).
+API_HOST = os.environ.get("EDGE_API_HOST", "127.0.0.1")
 RECEIVER_PORT = int(os.environ.get("EDGE_RECEIVER_PORT", "8001"))

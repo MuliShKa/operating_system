@@ -18,3 +18,7 @@
 - **Wrong `.gitignore` patterns** – `./OS1/project` and `./project` ignore nothing: git does
   not understand a leading `./`, and paths are relative to the `.gitignore` folder. The
   working pattern is `/project/`.
+- **No `kill` in the slim image** – `docker exec … kill -9` failed (`executable file not
+  found`). Used `python -c "os.kill(pid, SIGKILL)"` instead.
+- **Clicked the dashboard in Estève's Chrome** – not wanted. Dashboard checks are done with
+  `curl` on `/api/status` from now on.

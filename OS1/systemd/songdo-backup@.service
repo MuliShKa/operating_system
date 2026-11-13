@@ -1,0 +1,10 @@
+# One online backup of the node database (started by songdo-backup@.timer).
+[Unit]
+Description=Songdo Edge %i database backup
+
+[Service]
+Type=oneshot
+WorkingDirectory=@PROJECT_DIR@
+ExecStart=/usr/bin/env bash @PROJECT_DIR@/scripts/backup.sh
+Nice=10
+IOSchedulingClass=idle

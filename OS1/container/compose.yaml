@@ -1,0 +1,31 @@
+# Run from the OS1 folder:  docker compose -f container/compose.yaml up --build
+# Dashboard: http://127.0.0.1:8000
+services:
+  edge-os1:
+    build:
+      context: ..
+      dockerfile: container/Dockerfile
+    image: songdo-edge-os1
+    container_name: songdo-edge-os1
+    # Host side bound to 127.0.0.1: the dashboard is not exposed on the network.
+    ports:
+      - "127.0.0.1:${EDGE_HOST_PORT:-8000}:8000"
+    volumes:
+      - edge-os1-data:/app/data
+    # The supervisor exits with 1 when a worker dies: Docker restarts the node.
+    restart: on-failure:5
+    stop_signal: SIGTERM
+    stop_grace_period: 20s
+    # Resource limits (cgroups).
+    mem_limit: 512m
+    cpus: 1.5
+    pids_limit: 128
+    healthcheck:
+      test: ["CMD", "python", "-c", "import json,sys,urllib.request; s=json.load(urllib.request.urlopen('http://127.0.0.1:8000/api/status', timeout=2)); w=s['workers']; sys.exit(0 if w and all(v['status']=='running' for v in w.values()) else 1)"]
+      interval: 10s
+      timeout: 3s
+      start_period: 15s
+      retries: 3
+
+volumes:
+  edge-os1-data:

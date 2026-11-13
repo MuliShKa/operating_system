@@ -4,7 +4,8 @@ Node `EDGE_NODE_OS1_CONVENSIA`. This folder is a self-contained copy of the OS5
 node base (supervisor, bounded IPC queue, SQLite WAL, outbox, sync worker,
 mock receiver, API and dashboard), adapted to OS1.
 
-Scope of this folder today: **OS1-3, OS1-4, OS1-5** (Estève).
+Scope of this folder today: **OS1-3, OS1-4, OS1-5** (Estève) and the deployment
+(systemd, scheduled backup, container).
 OS1-1 (VWorld inventory) and OS1-2 (race condition) belong to Arthur and are not here yet.
 
 ## What is different from OS5
@@ -48,8 +49,19 @@ Official reports are kept in `document/results/`.
 
 Create the environment once with `bash scripts/setup.sh`, then use `.venv/bin/python`.
 
+## Deployment
+
+| What | How |
+|---|---|
+| systemd user service | `bash scripts/install_service.sh --start` → `systemctl --user status songdo-edge@OS1.service`, `journalctl --user-unit songdo-edge@OS1.service -f -o short-iso` |
+| Scheduled backup | `songdo-backup@OS1.timer` (every 15 min), or by hand `bash scripts/backup.sh` (flock: never two at once) |
+| Container | `docker compose -f container/compose.yaml up --build` → http://127.0.0.1:8000 |
+
+Details and test evidence: `document/journal/06-deployment.md`.
+
 ## Known limits
 
-- The supervisor still stops the node when a worker dies (OS5-2 work, shared base).
-- `container/`, `systemd/` and a runner for all scenarios are not done for OS1.
+- The supervisor stops the node when a worker dies (worker-level restart is OS5-2);
+  systemd and Docker restart the whole node instead.
+- No runner for all 25 scenarios yet (team-wide UI requirement).
 - Table names follow the team schema (`events`, `outbox`); the handbook calls them `sensor_events` and `durable_outbox`.
