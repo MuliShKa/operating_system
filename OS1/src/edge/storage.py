@@ -2,6 +2,7 @@
 """SQLite storage for the Songdo Edge Intelligence project."""
 
 import json
+import os
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
@@ -9,7 +10,12 @@ from pathlib import Path
 
 # Project paths
 PROJECT_DIR = Path(__file__).resolve().parents[2]
-DATABASE_PATH = PROJECT_DIR / "data" / "songdo.db"
+DATABASE_PATH = Path(
+    os.environ.get(
+        "EDGE_DATABASE_PATH",
+        str(PROJECT_DIR / "data" / "songdo.db")
+    )
+)
 SCHEMA_PATH = PROJECT_DIR / "sql" / "schema.sql"
 
 
@@ -26,7 +32,6 @@ def get_connection():
     connection.execute("PRAGMA busy_timeout = 10000")
 
     return connection
-
 
 
 @contextmanager
@@ -152,6 +157,22 @@ def mark_event_sent(event_id):
             UPDATE outbox
             SET status = 'sent',
                 sent_at = datetime('now')
+            WHERE event_id = ?
+              AND status = 'pending'
+            """,
+            (event_id,)
+        )
+
+        return cursor.rowcount == 1
+
+
+def mark_event_attempt(event_id):
+    """Increment the delivery attempt count for a pending event."""
+    with _managed_connection() as connection:
+        cursor = connection.execute(
+            """
+            UPDATE outbox
+            SET attempts = attempts + 1
             WHERE event_id = ?
               AND status = 'pending'
             """,

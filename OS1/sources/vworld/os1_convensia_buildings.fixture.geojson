@@ -1,0 +1,129 @@
+{
+  "type": "FeatureCollection",
+  "name": "os1_convensia_buildings_fixture",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+    }
+  },
+  "metadata": {
+    "source": "FIXTURE - hand-made test data, NOT downloaded from VWorld",
+    "purpose": "Offline cache stand-in for OS1-1 until the real VWorld extract is fetched",
+    "node": "EDGE_NODE_OS1_CONVENSIA (37.3888, 126.6534)",
+    "footprints": "Axis-aligned boxes around the node coordinates; not real building outlines"
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "id": "FIXTURE-CONVENSIA",
+      "properties": {
+        "bldg_id": "FIXTURE-CONVENSIA",
+        "name": "Songdo Convensia (approximate footprint)",
+        "floors": 4,
+        "fixture": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              126.6518,
+              37.3878
+            ],
+            [
+              126.655,
+              37.3878
+            ],
+            [
+              126.655,
+              37.3898
+            ],
+            [
+              126.6518,
+              37.3898
+            ],
+            [
+              126.6518,
+              37.3878
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "FIXTURE-NEIGHBOUR-NORTH",
+      "properties": {
+        "bldg_id": "FIXTURE-NEIGHBOUR-NORTH",
+        "name": "Fixture neighbour north",
+        "floors": 20,
+        "fixture": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              126.6526,
+              37.3912
+            ],
+            [
+              126.6542,
+              37.3912
+            ],
+            [
+              126.6542,
+              37.3924
+            ],
+            [
+              126.6526,
+              37.3924
+            ],
+            [
+              126.6526,
+              37.3912
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "FIXTURE-NEIGHBOUR-EAST",
+      "properties": {
+        "bldg_id": "FIXTURE-NEIGHBOUR-EAST",
+        "name": "Fixture neighbour east",
+        "floors": 12,
+        "fixture": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              126.6566,
+              37.3882
+            ],
+            [
+              126.6582,
+              37.3882
+            ],
+            [
+              126.6582,
+              37.3894
+            ],
+            [
+              126.6566,
+              37.3894
+            ],
+            [
+              126.6566,
+              37.3882
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

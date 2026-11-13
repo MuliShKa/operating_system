@@ -1,0 +1,25 @@
+{
+  "scenario": "OS1-1",
+  "seconds": 10.0,
+  "inventory": {
+    "rows": 3,
+    "source": "fixture",
+    "fixture_note": "FIXTURE - hand-made test data, NOT downloaded from VWorld",
+    "node_building": {
+      "building_id": "FIXTURE-CONVENSIA",
+      "name": "Songdo Convensia (approximate footprint)"
+    }
+  },
+  "readings": {
+    "INDOOR_CO2_PPM": 11,
+    "ROOM_TEMP_C": 11
+  },
+  "checks": {
+    "inventory loaded from the cached GeoJSON": true,
+    "node located inside a building": true,
+    "CO2 and temperature both ingested": true,
+    "every reading tagged with the node's building": true,
+    "units match the config (ppm, \u00b0C)": true,
+    "values inside the configured ranges": true
+  }
+}

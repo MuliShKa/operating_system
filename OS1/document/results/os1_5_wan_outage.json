@@ -1,0 +1,25 @@
+{
+  "scenario": "OS1-5",
+  "minutes": 10,
+  "outage_seconds": 600.0,
+  "backlog_events": 1202,
+  "events_during_outage": 1198,
+  "decisions_during_outage": 628,
+  "drain_seconds": 11.5,
+  "conservation": {
+    "expected": 1202,
+    "received": 1224,
+    "lost": 0,
+    "duplicates": 0
+  },
+  "checks": {
+    "no worker crashed or changed PID": true,
+    "API and dashboard answered while offline": true,
+    "events kept arriving offline": true,
+    "decisions kept being made offline": true,
+    "nothing delivered while offline": true,
+    "backlog fully drained": true,
+    "no event lost": true,
+    "no duplicate": true
+  }
+}

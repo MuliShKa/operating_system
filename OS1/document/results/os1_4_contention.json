@@ -1,0 +1,143 @@
+{
+  "scenario": "OS1-4",
+  "seconds_per_phase": 30,
+  "burners": 28,
+  "rows_in_process_health": 246,
+  "idle": {
+    "API": {
+      "samples": 15,
+      "cpu_pct": 0.0,
+      "max_rss_kb": 32200,
+      "voluntary_per_s": 2.0,
+      "involuntary_per_s": 0.0,
+      "median_period_s": 2.0
+    },
+    "Actuator": {
+      "samples": 15,
+      "cpu_pct": 0.4,
+      "max_rss_kb": 32304,
+      "voluntary_per_s": 106.3,
+      "involuntary_per_s": 1.1,
+      "median_period_s": 2.0
+    },
+    "HealthMon": {
+      "samples": 15,
+      "cpu_pct": 0.0,
+      "max_rss_kb": 31760,
+      "voluntary_per_s": 2.3,
+      "involuntary_per_s": 0.3,
+      "median_period_s": 2.0
+    },
+    "ProcSampler": {
+      "samples": 15,
+      "cpu_pct": 0.3,
+      "max_rss_kb": 32348,
+      "voluntary_per_s": 54.0,
+      "involuntary_per_s": 4.7,
+      "median_period_s": 2.0
+    },
+    "Processor": {
+      "samples": 15,
+      "cpu_pct": 0.7,
+      "max_rss_kb": 32764,
+      "voluntary_per_s": 130.0,
+      "involuntary_per_s": 3.7,
+      "median_period_s": 2.0
+    },
+    "Receiver": {
+      "samples": 15,
+      "cpu_pct": 0.3,
+      "max_rss_kb": 40248,
+      "voluntary_per_s": 8.2,
+      "involuntary_per_s": 0.0,
+      "median_period_s": 2.0
+    },
+    "SensorGen": {
+      "samples": 15,
+      "cpu_pct": 0.0,
+      "max_rss_kb": 31168,
+      "voluntary_per_s": 1.0,
+      "involuntary_per_s": 0.0,
+      "median_period_s": 2.0
+    },
+    "SyncWorker": {
+      "samples": 15,
+      "cpu_pct": 0.5,
+      "max_rss_kb": 35056,
+      "voluntary_per_s": 23.0,
+      "involuntary_per_s": 4.2,
+      "median_period_s": 2.0
+    }
+  },
+  "load": {
+    "API": {
+      "samples": 15,
+      "cpu_pct": 0.0,
+      "max_rss_kb": 32200,
+      "voluntary_per_s": 2.0,
+      "involuntary_per_s": 0.0,
+      "median_period_s": 2.0
+    },
+    "Actuator": {
+      "samples": 15,
+      "cpu_pct": 0.3,
+      "max_rss_kb": 32304,
+      "voluntary_per_s": 101.1,
+      "involuntary_per_s": 2.5,
+      "median_period_s": 2.0
+    },
+    "HealthMon": {
+      "samples": 15,
+      "cpu_pct": 0.0,
+      "max_rss_kb": 31888,
+      "voluntary_per_s": 1.6,
+      "involuntary_per_s": 0.7,
+      "median_period_s": 2.0
+    },
+    "ProcSampler": {
+      "samples": 15,
+      "cpu_pct": 0.5,
+      "max_rss_kb": 32348,
+      "voluntary_per_s": 28.7,
+      "involuntary_per_s": 11.7,
+      "median_period_s": 2.0
+    },
+    "Processor": {
+      "samples": 15,
+      "cpu_pct": 0.7,
+      "max_rss_kb": 32636,
+      "voluntary_per_s": 113.1,
+      "involuntary_per_s": 12.2,
+      "median_period_s": 2.0
+    },
+    "Receiver": {
+      "samples": 15,
+      "cpu_pct": 0.5,
+      "max_rss_kb": 42464,
+      "voluntary_per_s": 8.5,
+      "involuntary_per_s": 0.8,
+      "median_period_s": 2.0
+    },
+    "SensorGen": {
+      "samples": 15,
+      "cpu_pct": 0.0,
+      "max_rss_kb": 31168,
+      "voluntary_per_s": 1.0,
+      "involuntary_per_s": 0.8,
+      "median_period_s": 2.0
+    },
+    "SyncWorker": {
+      "samples": 15,
+      "cpu_pct": 0.7,
+      "max_rss_kb": 35316,
+      "voluntary_per_s": 19.3,
+      "involuntary_per_s": 12.9,
+      "median_period_s": 2.0
+    }
+  },
+  "checks": {
+    "every worker sampled in both phases": true,
+    "samples every 2.0 s (median within 0.2 s)": true,
+    "load raised involuntary context switches overall": true
+  }
+}

@@ -1,0 +1,7 @@
+# Keep the image small and never ship local data or course material.
+.venv/
+data/
+project/
+document/
+**/__pycache__/
+*.py[cod]

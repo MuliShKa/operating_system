@@ -1,0 +1,40 @@
+# systemd user service template for one Songdo edge node.
+# The instance name is the team: songdo-edge@OS1.service
+#
+# Install with: bash scripts/install_service.sh   (fills in @PROJECT_DIR@)
+# Then:         systemctl --user status songdo-edge@OS1.service
+#               journalctl --user-unit songdo-edge@OS1.service -f -o short-iso
+
+[Unit]
+Description=Songdo Edge Intelligence node %i
+After=network.target
+# Burst limit: at most 5 starts in 60 s, then systemd stops trying
+# (a crash loop is reported instead of hammering the machine).
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+WorkingDirectory=@PROJECT_DIR@
+Environment=PYTHONPATH=@PROJECT_DIR@/src
+Environment=PYTHONUNBUFFERED=1
+ExecStartPre=/usr/bin/env bash @PROJECT_DIR@/scripts/preflight.sh
+ExecStart=@PROJECT_DIR@/.venv/bin/python -m edge.supervisor
+
+# The supervisor exits with 1 when a worker dies: systemd restarts the node.
+Restart=on-failure
+RestartSec=2
+
+# Clean stop: SIGTERM to the supervisor, which stops and joins every worker.
+KillSignal=SIGTERM
+KillMode=mixed
+TimeoutStopSec=20
+
+# Resource constraints (cgroup v2), applied to the supervisor and all workers.
+MemoryHigh=384M
+MemoryMax=512M
+CPUQuota=150%
+TasksMax=128
+
+[Install]
+WantedBy=default.target

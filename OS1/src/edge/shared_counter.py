@@ -64,4 +64,3 @@ class SharedCounter:
         time.sleep(pause_s)
 
         self._value.value = old + 1
-        
