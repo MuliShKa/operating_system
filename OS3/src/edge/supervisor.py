@@ -9,6 +9,7 @@ import time
 
 from edge import storage
 from edge.SensorGen import run_sensor_gen
+from edge.actuator import run_actuator
 from edge.api_server import run_api_server
 from edge.ipc import IpcChannels
 from edge.processor import run_processor
@@ -18,6 +19,7 @@ from edge.sync_worker import run_sync_worker
 PROCESS_NAMES = (
     "SensorGen",
     "Processor",
+    "Actuator",
     "HealthMon",
     "API",
     "Receiver",
@@ -57,6 +59,7 @@ def start_processes(context, channels, state):
     targets = {
         "SensorGen": (run_sensor_gen, (channels,)),
         "Processor": (run_processor, (channels, state)),
+        "Actuator": (run_actuator, (channels, state)),
         "HealthMon": (_run_health_monitor, (state, channels.stop)),
         "API": (run_api_server, (state, channels.stop, channels)),
         "Receiver": (run_receiver, (channels.stop,)),

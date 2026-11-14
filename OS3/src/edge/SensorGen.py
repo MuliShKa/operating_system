@@ -43,10 +43,12 @@ def run_sensor_gen(channels):
 
         speed = round(random.uniform(30.0, 70.0), 1)
         current_time = time.time()
+        # Each reading carries its monotonic read time: command TTLs start from it.
+        read_at = time.monotonic()
 
-        radar_event = SensorEvent("RADAR_SPEED", speed, "km/h", current_time)
+        radar_event = SensorEvent("RADAR_SPEED", speed, "km/h", current_time, read_at)
         pedestrian_event = SensorEvent(
-            "PED_CROSSWALK_COUNT", pedestrians, "people", current_time
+            "PED_CROSSWALK_COUNT", pedestrians, "people", current_time, read_at
         )
 
         channels.sensor_events.put(radar_event)

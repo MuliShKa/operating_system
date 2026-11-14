@@ -17,13 +17,17 @@ Node ID: `EDGE_NODE_OS3_MOBILITY` (lat 37.3820, lon 126.6560)
 2. Readings travel through a **priority-aware bounded queue** (500 items per lane,
    drop-oldest). Surge alarms use the urgent lane (OS3-2, OS3-3).
 3. `Processor` stores every event in SQLite (WAL) together with an outbox row,
-   in one transaction, and applies the local rule.
-4. **Rule:** `PED_CROSSWALK_COUNT >= 15` -> `VARIABLE_SPEED_SIGN_KMH = 30`
-   with a 15 s monotonic TTL. When no new surge reading refreshes the command,
-   the sign returns to 50 km/h.
-5. The sign state lives in the `sign_state` table and changes only through a
+   in one transaction, and applies the local rule. It only **issues** commands.
+4. **Rule:** `PED_CROSSWALK_COUNT >= 15` -> `VARIABLE_SPEED_SIGN_KMH = 30`.
+   The command expires 15 s **after the sensor reading** (monotonic clock), not
+   after the decision, so time spent waiting in a queue counts.
+5. The `Actuator` worker is the only one that moves the sign. Right before acting
+   it compares the command's expiry with its own monotonic clock and **rejects
+   stale commands** (`SIGN_COMMAND_EXPIRED`). When no new surge command
+   refreshes the deadline, it restores 50 km/h.
+6. The sign state lives in the `sign_state` table and changes only through a
    **version-guarded** `UPDATE ... WHERE version = ?` (OS3-4).
-6. `SyncWorker` sends pending outbox rows to the mock `Receiver` only while the
+7. `SyncWorker` sends pending outbox rows to the mock `Receiver` only while the
    simulated WAN is online. The receiver deduplicates by `event_id` (OS3-5).
 
 Thresholds and the TTL are **team decisions** (the handbook does not define
@@ -34,7 +38,8 @@ them). Change them in `config/node.yaml`.
 | Process | Role |
 |---|---|
 | `SensorGen` | Simulated radar and crosswalk sensors |
-| `Processor` | Queue consumer, local rule, sign state, SQLite writes |
+| `Processor` | Queue consumer, local rule, SQLite writes, issues sign commands |
+| `Actuator` | Checks command freshness (monotonic clock), moves the sign, restores it on TTL expiry. `EDGE_ACTUATOR_DELAY_S=16` slows it down to demonstrate rejection |
 | `HealthMon` | Heartbeat into `process_health` |
 | `API` | Local dashboard and JSON status on `127.0.0.1:8000` |
 | `Receiver` | Mock upstream endpoint on `127.0.0.1:8001` |
@@ -59,7 +64,8 @@ PYTHONPATH=src python3 -m edge.supervisor
 
 ```bash
 python3 tests/test_os_fundamentals.py -v          # queues, IPC, race, deadlock
-python3 tests/test_surge_rule.py -v               # rule, TTL, version-guarded sign
+python3 tests/test_surge_rule.py -v               # rule, TTL from reading time, version-guarded sign
+PYTHONPATH=src python3 tests/test_actuator.py -v  # freshness check, rejection, restore
 PYTHONPATH=src python3 tests/test_demo_integration.py -v
 ```
 

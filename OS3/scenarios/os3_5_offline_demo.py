@@ -39,7 +39,6 @@ from urllib.request import Request, urlopen
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 API = "http://127.0.0.1:8000"
 RECEIVER = "http://127.0.0.1:8001/api/events"
-EXPECTED_WORKERS = 6
 SETTLE_SECONDS = 2.0        # let an in-flight delivery finish after the WAN cut
 EVENTS_PER_SECOND = 2       # SensorGen produces 2 readings per second
 
@@ -186,6 +185,8 @@ def _scenario(node, node_db, receiver_db, log_path, report,
         time.sleep(1)
     report.check("online delivery works before the cut", True,
                  "receiver is receiving events while the WAN is online")
+    # Every worker the node starts must stay alive during the outage.
+    expected_workers = len(api_get("/api/status")["workers"])
 
     # --- 2. cut the WAN ---------------------------------------------------------
     print(f"\n>>> WAN CUT for {offline_seconds} s")
@@ -195,6 +196,8 @@ def _scenario(node, node_db, receiver_db, log_path, report,
 
     workers_always_running = True
     crashed_at = ""
+    wan_stayed_cut = True
+    wan_restored_at = ""
     offline_started = time.monotonic()
     next_print = 0.0
     while time.monotonic() - offline_started < offline_seconds:
@@ -202,9 +205,13 @@ def _scenario(node, node_db, receiver_db, log_path, report,
         try:
             status = api_get("/api/status")
             running = sum(1 for w in status["workers"].values() if w["status"] == "running")
-            if running != EXPECTED_WORKERS or node.poll() is not None:
+            if running != expected_workers or node.poll() is not None:
                 workers_always_running = False
-                crashed_at = crashed_at or f"{elapsed:.0f} s ({running}/{EXPECTED_WORKERS} running)"
+                crashed_at = crashed_at or f"{elapsed:.0f} s ({running}/{expected_workers} running)"
+            if status.get("wan_online"):
+                # Someone pressed "Restore WAN" in the dashboard: the run is no longer valid.
+                wan_stayed_cut = False
+                wan_restored_at = wan_restored_at or f"{elapsed:.0f} s"
             sign = status.get("sign_state") or {}
         except (URLError, OSError, ValueError):
             workers_always_running = False
@@ -221,8 +228,11 @@ def _scenario(node, node_db, receiver_db, log_path, report,
     new_events = end.events - start.events
     expected = EVENTS_PER_SECOND * offline_seconds
 
+    report.check("the WAN stayed cut for the whole window", wan_stayed_cut,
+                 "no one restored the WAN during the outage" if wan_stayed_cut
+                 else f"WAN was restored by hand at {wan_restored_at}: do not touch the dashboard during the run")
     report.check("every worker kept running during the outage", workers_always_running,
-                 "6/6 workers running at every sample" if workers_always_running
+                 f"{expected_workers}/{expected_workers} workers running at every sample" if workers_always_running
                  else f"problem first seen at {crashed_at}")
     report.check("local processing continued (sensing + storage)", new_events >= 0.5 * expected,
                  f"{new_events} events stored while offline (about {expected} expected)")

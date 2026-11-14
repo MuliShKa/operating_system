@@ -1,4 +1,9 @@
-"""Connect sensor readings to local decisions, the sign state and durable storage."""
+"""Connect sensor readings to local decisions and durable storage.
+
+The Processor stores every reading, applies the local rule and ISSUES speed
+sign commands. It never moves the sign itself: the Actuator worker does that,
+after checking that the command is still fresh.
+"""
 
 from __future__ import annotations
 
@@ -9,61 +14,9 @@ from typing import Any
 
 from edge import bis_loader, decision, storage
 from edge.config import PROJECT_DIR, load_config
+from edge.models import ActuatorCommand
 
 PED_SENSOR = "PED_CROSSWALK_COUNT"
-MAX_SIGN_UPDATE_TRIES = 3
-
-
-def _set_sign_limit(speed_limit: int):
-    """
-    Change the sign with a version-guarded update (scenario OS3-4).
-
-    Returns (sign_state, changed). If another writer wins the race, re-read the
-    state and try again, up to MAX_SIGN_UPDATE_TRIES times.
-    """
-    for _ in range(MAX_SIGN_UPDATE_TRIES):
-        current = storage.get_sign_state()
-        if current["speed_limit_kmh"] == speed_limit:
-            return current, False
-        if storage.update_sign_state(speed_limit, current["version"]):
-            return storage.get_sign_state(), True
-    return storage.get_sign_state(), False
-
-
-def _publish_sign(state: Any, sign: dict) -> None:
-    state["sign_state"] = {
-        "speed_limit_kmh": sign["speed_limit_kmh"],
-        "version": sign["version"],
-        "surge_active": sign["speed_limit_kmh"] == decision.SPEED_LIMIT_SURGE,
-    }
-
-
-def _remember_decision(state: Any, entry: dict) -> None:
-    decisions = list(state.get("recent_decisions", []))
-    decisions.append(entry)
-    state["recent_decisions"] = decisions[-20:]
-
-
-def _restore_sign_if_expired(state: Any, expires_at: float | None) -> float | None:
-    """When the surge command is stale, put the sign back to its normal limit."""
-    if expires_at is None or not decision.is_command_expired(expires_at):
-        return expires_at
-
-    sign, changed = _set_sign_limit(decision.SPEED_LIMIT_NORMAL)
-    _publish_sign(state, sign)
-    if changed:
-        reason = "Surge command expired (TTL); sign restored"
-        storage.save_decision(
-            None, decision.SIGN_ACTION, reason, decision.SPEED_LIMIT_NORMAL
-        )
-        _remember_decision(state, {
-            "action": decision.SIGN_ACTION,
-            "value": decision.SPEED_LIMIT_NORMAL,
-            "reason": reason,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "expires_in_seconds": None,
-        })
-    return None
 
 
 def _load_bus_context() -> bis_loader.BusContext:
@@ -84,15 +37,13 @@ def run_processor(channels: Any, state: Any) -> None:
     state["bus_context"] = bus_context.to_dict()
     bus_note = bus_context.describe()
 
-    # Fail-safe at startup: begin from the normal limit, not from a stale surge.
-    sign, _ = _set_sign_limit(decision.SPEED_LIMIT_NORMAL)
-    _publish_sign(state, sign)
-    sign_expires_at = None
+    # Deadline of the last command this process issued; used only to tell a NEW
+    # surge (record a decision) from a refresh of the surge already running.
+    last_command_expires_at = None
 
     # Keep running until stop is requested AND the queue is drained.
     while not channels.stop.is_set() or channels.sensor_events.size():
         event = channels.sensor_events.get(timeout=0.2)
-        sign_expires_at = _restore_sign_if_expired(state, sign_expires_at)
         if event is None:
             continue
 
@@ -113,23 +64,31 @@ def run_processor(channels: Any, state: Any) -> None:
         if event.sensor_id != PED_SENSOR:
             continue
 
-        edge_decision, expires_at = decision.make_decision(event.value)
-        if edge_decision is None or decision.is_command_expired(expires_at):
+        # The TTL starts when the SENSOR was read, not now.
+        observed = event.monotonic or time.monotonic()
+        edge_decision, expires_at = decision.make_decision(event.value, observed)
+        if edge_decision is None:
             continue
 
-        # A new surge reading always refreshes the command lifetime.
-        sign_expires_at = expires_at
+        # Hand the command to the Actuator, which checks freshness before acting.
+        channels.commands.put(ActuatorCommand(
+            event_id=event_id,
+            action=edge_decision.action,
+            value=edge_decision.value,
+            expires_at=expires_at,
+            reason=edge_decision.reason,
+        ))
 
-        sign, changed = _set_sign_limit(int(edge_decision.value))
-        _publish_sign(state, sign)
-        if not changed:
-            continue  # sign already at the surge limit: nothing new to record
+        new_surge = decision.is_command_expired(last_command_expires_at)
+        last_command_expires_at = max(last_command_expires_at or 0.0, expires_at)
+        if not new_surge:
+            continue
 
         # Correlate the surge with the bus stop context (OS3-1).
         reason = f"{edge_decision.reason}; {bus_note}" if bus_note else edge_decision.reason
-
         storage.save_decision(event_id, edge_decision.action, reason, edge_decision.value)
-        _remember_decision(state, {
+        decisions = list(state.get("recent_decisions", []))
+        decisions.append({
             "action": edge_decision.action,
             "value": edge_decision.value,
             "reason": reason,
@@ -138,3 +97,4 @@ def run_processor(channels: Any, state: Any) -> None:
             ).isoformat(),
             "expires_in_seconds": max(0, round(expires_at - time.monotonic(), 1)),
         })
+        state["recent_decisions"] = decisions[-20:]

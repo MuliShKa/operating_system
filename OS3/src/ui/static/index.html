@@ -202,7 +202,9 @@
                 document.getElementById("sign-limit").textContent = `${sign.speed_limit_kmh} km/h`;
                 setBadge(signStatus, sign.surge_active ? "SURGE LIMIT ACTIVE" : "Normal limit",
                     sign.surge_active ? "alert" : "normal");
-                document.getElementById("sign-detail").textContent = `Sign state version: ${sign.version}`;
+                const act = data.actuator || {};
+                document.getElementById("sign-detail").textContent =
+                    `Version ${sign.version} · applied ${act.applied ?? 0} / rejected as expired ${act.expired ?? 0}`;
             }
 
             const bus = data.bus_context;
@@ -267,7 +269,9 @@
 
             const decisionsBody = document.getElementById("decisions");
             decisionsBody.replaceChildren();
-            const decisions = data.recent_decisions || [];
+            // Processor decisions + Actuator outcomes (applied / expired / restored), oldest first.
+            const decisions = [...(data.recent_decisions || []), ...(data.recent_actuations || [])]
+                .sort((a, b) => String(a.timestamp).localeCompare(String(b.timestamp)));
             if (decisions.length === 0) {
                 showMessage(decisionsBody, 4, "No decisions recorded yet");
             } else {

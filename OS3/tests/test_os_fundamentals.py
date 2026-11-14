@@ -226,6 +226,10 @@ class TestIpcChannels(unittest.TestCase):
         self.assertTrue(ipc.wan_online.is_set())  # the internet is up at startup
 
 
+@unittest.skipUnless(
+    hasattr(socket, "AF_UNIX"),
+    "Unix domain sockets are not available on native Windows; run these tests in WSL2/Ubuntu",
+)
 class TestUnixSocket(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()

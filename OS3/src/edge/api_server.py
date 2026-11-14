@@ -62,6 +62,11 @@ def run_api_server(state: Any, stop_event: Any, channels: Any) -> None:
                     "workers": workers,
                     "recent_readings": snapshot.get("recent_readings", []),
                     "recent_decisions": snapshot.get("recent_decisions", []),
+                    "recent_actuations": snapshot.get("recent_actuations", []),
+                    "actuator": {
+                        "applied": snapshot.get("actuator_applied", 0),
+                        "expired": snapshot.get("actuator_expired", 0),
+                    },
                     "sign_state": snapshot.get("sign_state"),
                     "bus_context": snapshot.get("bus_context"),
                     "queue": channels.sensor_events.stats(),

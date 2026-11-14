@@ -11,9 +11,21 @@ class SensorEvent:
     value: float       # number measured by the sensor
     unit: str          # unit of the value, e.g. "km/h"
     timestamp: float   # wall-clock time of the reading, in seconds (time.time())
+    monotonic: float = 0.0  # time.monotonic() when the sensor was read (0 = unknown)
 
     def __str__(self) -> str:
         return f"{self.sensor_id} = {self.value} {self.unit}"
+
+
+@dataclass
+class ActuatorCommand:
+    """A command for the speed sign, waiting for the Actuator to apply it."""
+
+    event_id: str      # the reading that caused the command
+    action: str        # e.g. "VARIABLE_SPEED_SIGN_KMH"
+    value: float       # e.g. 30
+    expires_at: float  # time.monotonic() deadline: the command is stale after it
+    reason: str        # why the command was issued
 
 
 @dataclass
