@@ -67,15 +67,29 @@ PYTHONPATH=src python3 tests/test_demo_integration.py -v
 
 | Scenario | Status |
 |---|---|
-| OS3-1 Bus stop context | **Not started** - needs cached Incheon BIS data (dataset `15048265`) and a loader |
+| OS3-1 Bus stop context | Implemented and tested. Uses a **synthetic sample CSV** until the real cached BIS file is placed in `sources/incheon_bis_stops.csv` (column names of the real file not verified) |
 | OS3-2 Priority queue | Implemented and tested |
 | OS3-3 Overload / drop-oldest | Implemented and tested |
 | OS3-4 Transactional sign state | Implemented and tested |
-| OS3-5 Offline sign dispatch and replay | Mechanism works; the 10-minute conservation test is still to be written |
+| OS3-5 Offline sign dispatch and replay | Implemented: `scenarios/os3_5_offline_demo.py` |
+
+## Offline demonstration (OS3-5)
+
+```bash
+python3 scenarios/os3_5_offline_demo.py                        # full 10-minute demo
+python3 scenarios/os3_5_offline_demo.py --offline-seconds 60   # quick check
+```
+
+It starts the node with throwaway databases, cuts the simulated WAN, and checks
+that all workers keep running, events keep being stored, sign decisions
+continue, and nothing is delivered. It then restores the WAN, waits for the
+backlog to drain, replays one event to prove the receiver deduplicates, and
+verifies conservation: no event lost, nothing marked `sent` that the receiver
+does not have. Exit code 0 means every check passed. Use `| tee report.txt`
+to keep the report as evidence. Stop any running node first (port 8000).
 
 ## Not implemented yet
 
-- Bus stop data loader and correlation with pedestrian counts (OS3-1).
 - Automatic restart of a crashed worker (the supervisor stops everything instead).
 - `scenarios/run_all_scenarios.py`, systemd unit, Dockerfile and compose file.
-- Backup script with `flock`, and the 10-minute offline demonstration script.
+- Backup script with `flock`.
