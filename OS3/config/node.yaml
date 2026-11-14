@@ -22,6 +22,13 @@ speed_limit_normal_kmh: 50       # sign value when there is no surge
 speed_limit_surge_kmh: 30        # sign value during a surge (handbook: 30 km/h)
 command_ttl_seconds: 15.0        # a sign command is stale after this time (monotonic clock)
 
+# --- Scenario OS3-1: cached Incheon BIS bus stop context ---
+# Put the real cached file at bis_stops_csv. While it is missing, the node falls
+# back to the SYNTHETIC sample (flagged "SAMPLE DATA" on the dashboard).
+bis_stops_csv: sources/incheon_bis_stops.csv
+bis_sample_csv: sources/bis_stops_SAMPLE_synthetic.csv
+bis_radius_m: 200                # bus stops within this distance count as "nearby" (team decision)
+
 # --- Open data benchmark ---
 open_data:
   incheon_bis_bus_stops: "15048265"

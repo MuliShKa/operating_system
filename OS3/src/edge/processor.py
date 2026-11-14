@@ -7,7 +7,8 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from edge import decision, storage
+from edge import bis_loader, decision, storage
+from edge.config import PROJECT_DIR, load_config
 
 PED_SENSOR = "PED_CROSSWALK_COUNT"
 MAX_SIGN_UPDATE_TRIES = 3
@@ -65,7 +66,24 @@ def _restore_sign_if_expired(state: Any, expires_at: float | None) -> float | No
     return None
 
 
+def _load_bus_context() -> bis_loader.BusContext:
+    """OS3-1: read the cached bus stop file from local disk (works offline)."""
+    config = load_config()
+    return bis_loader.build_context(
+        latitude=float(config["latitude"]),
+        longitude=float(config["longitude"]),
+        radius_m=float(config["bis_radius_m"]),
+        primary_csv=PROJECT_DIR / str(config["bis_stops_csv"]),
+        fallback_csv=PROJECT_DIR / str(config["bis_sample_csv"]),
+    )
+
+
 def run_processor(channels: Any, state: Any) -> None:
+    # OS3-1: bus stop context, loaded once at startup from the local cache.
+    bus_context = _load_bus_context()
+    state["bus_context"] = bus_context.to_dict()
+    bus_note = bus_context.describe()
+
     # Fail-safe at startup: begin from the normal limit, not from a stale surge.
     sign, _ = _set_sign_limit(decision.SPEED_LIMIT_NORMAL)
     _publish_sign(state, sign)
@@ -107,13 +125,14 @@ def run_processor(channels: Any, state: Any) -> None:
         if not changed:
             continue  # sign already at the surge limit: nothing new to record
 
-        storage.save_decision(
-            event_id, edge_decision.action, edge_decision.reason, edge_decision.value
-        )
+        # Correlate the surge with the bus stop context (OS3-1).
+        reason = f"{edge_decision.reason}; {bus_note}" if bus_note else edge_decision.reason
+
+        storage.save_decision(event_id, edge_decision.action, reason, edge_decision.value)
         _remember_decision(state, {
             "action": edge_decision.action,
             "value": edge_decision.value,
-            "reason": edge_decision.reason,
+            "reason": reason,
             "timestamp": datetime.fromtimestamp(
                 edge_decision.timestamp, timezone.utc
             ).isoformat(),

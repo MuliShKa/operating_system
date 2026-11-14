@@ -17,6 +17,11 @@ DEFAULTS: dict[str, Any] = {
     "speed_limit_normal_kmh": 50,
     "speed_limit_surge_kmh": 30,
     "command_ttl_seconds": 15.0,
+    "latitude": 37.3820,
+    "longitude": 126.6560,
+    "bis_stops_csv": "sources/incheon_bis_stops.csv",
+    "bis_sample_csv": "sources/bis_stops_SAMPLE_synthetic.csv",
+    "bis_radius_m": 200,
 }
 
 

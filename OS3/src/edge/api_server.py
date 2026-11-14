@@ -63,6 +63,7 @@ def run_api_server(state: Any, stop_event: Any, channels: Any) -> None:
                     "recent_readings": snapshot.get("recent_readings", []),
                     "recent_decisions": snapshot.get("recent_decisions", []),
                     "sign_state": snapshot.get("sign_state"),
+                    "bus_context": snapshot.get("bus_context"),
                     "queue": channels.sensor_events.stats(),
                     "pending_events": snapshot.get("pending_events", 0),
                     "wan_online": channels.wan_online.is_set(),

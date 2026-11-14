@@ -72,6 +72,12 @@
         <p class="detail" id="queue-detail">Dropped: &mdash;</p>
     </section>
     <section class="card">
+        <div class="label">Nearby Bus Stops (BIS cache)</div>
+        <div class="value" id="bus-count">&mdash;</div>
+        <span id="bus-badge" class="badge unknown">No data</span>
+        <p class="detail" id="bus-detail">Nearest: &mdash;</p>
+    </section>
+    <section class="card">
         <div class="label">Active Processes</div>
         <div class="value" id="active-processes">&mdash;</div>
         <p class="detail">Workers reporting as running</p>
@@ -197,6 +203,17 @@
                 setBadge(signStatus, sign.surge_active ? "SURGE LIMIT ACTIVE" : "Normal limit",
                     sign.surge_active ? "alert" : "normal");
                 document.getElementById("sign-detail").textContent = `Sign state version: ${sign.version}`;
+            }
+
+            const bus = data.bus_context;
+            if (bus) {
+                document.getElementById("bus-count").textContent = `${bus.nearby_count} within ${bus.radius_m} m`;
+                setBadge(document.getElementById("bus-badge"),
+                    bus.source === "none" ? "No cache file" : (bus.is_sample ? "SAMPLE DATA (synthetic)" : "Cached BIS data"),
+                    bus.source === "none" ? "stopped" : (bus.is_sample ? "warning" : "running"));
+                const first = bus.nearby[0];
+                document.getElementById("bus-detail").textContent = first
+                    ? `Nearest: ${first.name} (${first.distance_m} m)` : "Nearest: none in range";
             }
 
             document.getElementById("pending-events").textContent = safeText(data.pending_events ?? 0);

@@ -1,0 +1,4 @@
+stop_id,stop_name,latitude,longitude,routes
+SAMPLE-001,SAMPLE stop A (synthetic - not real),37.3823,126.6563,SAMPLE-R1;SAMPLE-R2
+SAMPLE-002,SAMPLE stop B (synthetic - not real),37.3812,126.6548,SAMPLE-R1
+SAMPLE-003,SAMPLE stop C (synthetic - not real),37.3850,126.6600,SAMPLE-R3
