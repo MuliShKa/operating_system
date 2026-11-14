@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -10,7 +11,13 @@ from typing import Any
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[2]
-RECEIVER_DATABASE = PROJECT_DIR / "data" / "upstream_receiver.db"
+# EDGE_RECEIVER_DATABASE_PATH lets tests and the offline demo use a throwaway database.
+RECEIVER_DATABASE = Path(
+    os.environ.get(
+        "EDGE_RECEIVER_DATABASE_PATH",
+        str(PROJECT_DIR / "data" / "upstream_receiver.db"),
+    )
+)
 
 
 def initialize_receiver_database() -> None:
