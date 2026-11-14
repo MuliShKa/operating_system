@@ -1,0 +1,15 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+
+# Virtual environment
+.venv/
+
+# Local databases (including SQLite WAL side files)
+data/*.db
+data/*.db-wal
+data/*.db-shm
+
+# Local backup files
+*.backup
+data/backups/*.db

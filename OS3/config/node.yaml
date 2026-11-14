@@ -1,0 +1,27 @@
+# Master configuration for the OS3 node (Autonomous Mobility Edge Node).
+# Values marked "team decision" are NOT defined by the course handbook:
+# the team must confirm them and be ready to justify them in the oral defense.
+
+node_id: EDGE_NODE_OS3_MOBILITY
+location_name: Techno-Park Intersection
+latitude: 37.3820
+longitude: 126.6560
+
+sensors:
+  - RADAR_SPEED            # vehicle speed, km/h
+  - PED_CROSSWALK_COUNT    # pedestrians at the crosswalk, people
+
+actuators:
+  - VARIABLE_SPEED_SIGN_KMH
+
+queue_size: 500            # bounded queue capacity per lane (drop-oldest policy)
+
+# --- Local decision rule (team decision) ---
+pedestrian_surge_threshold: 15   # count >= this value is a "pedestrian surge"
+speed_limit_normal_kmh: 50       # sign value when there is no surge
+speed_limit_surge_kmh: 30        # sign value during a surge (handbook: 30 km/h)
+command_ttl_seconds: 15.0        # a sign command is stale after this time (monotonic clock)
+
+# --- Open data benchmark ---
+open_data:
+  incheon_bis_bus_stops: "15048265"

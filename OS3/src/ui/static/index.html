@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Songdo Edge Intelligence - OS3</title>
+<style>
+    :root { font-family: system-ui, sans-serif; color: #172033; background: #f3f6fb; }
+    * { box-sizing: border-box; }
+    body { max-width: 1100px; margin: 32px auto; padding: 0 18px; }
+    h1 { margin-bottom: 4px; }
+    .subtitle { color: #64748b; margin-top: 0; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; margin: 22px 0; }
+    .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px #0000000d; margin-bottom: 18px; overflow-x: auto; }
+    .label { color: #64748b; font-size: 14px; }
+    .value { font-size: 28px; font-weight: 700; margin: 8px 0; }
+    .detail { font-size: 13px; color: #64748b; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { text-align: left; padding: 11px 9px; border-bottom: 1px solid #e5eaf1; white-space: nowrap; }
+    th { background: #f5f7fb; font-size: 13px; }
+    .badge { display: inline-block; padding: 4px 9px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+    .running, .normal { background: #dcfce7; color: #166534; }
+    .stopped, .error, .alert { background: #fee2e2; color: #991b1b; }
+    .unknown, .warning { background: #fef3c7; color: #92400e; }
+    .empty { color: #64748b; padding: 16px 0; }
+    .section-title { margin-top: 0; }
+    #connection { font-size: 13px; color: #64748b; }
+    button { padding: 10px 14px; margin: 4px 8px 4px 0; border: 0; border-radius: 8px; cursor: pointer; font-weight: 600; }
+    #wan-offline { background: #fee2e2; color: #991b1b; }
+    #wan-online { background: #dcfce7; color: #166534; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+</style>
+</head>
+<body>
+<h1>Songdo Edge Intelligence</h1>
+<p class="subtitle">Autonomous Mobility Edge Node (OS3) - Techno-Park Intersection - Live Monitoring</p>
+<p id="connection">Connecting to edge node...</p>
+
+<section class="card">
+    <h2 class="section-title">WAN Connection</h2>
+    <p>Status: <span id="wan-status" class="badge unknown">Checking...</span></p>
+    <button id="wan-offline" type="button">Simulate WAN Internet Cut</button>
+    <button id="wan-online" type="button">Restore WAN Connection</button>
+    <p id="wan-message" class="detail">Control the simulated upstream connection.</p>
+</section>
+
+<div class="grid">
+    <section class="card">
+        <div class="label">Variable Speed Sign</div>
+        <div class="value" id="sign-limit">&mdash;</div>
+        <span id="sign-status" class="badge unknown">No data</span>
+        <p class="detail" id="sign-detail">Sign state version: &mdash;</p>
+    </section>
+    <section class="card">
+        <div class="label">Pedestrians at Crosswalk</div>
+        <div class="value" id="pedestrians">&mdash;</div>
+        <span id="pedestrian-status" class="badge unknown">No data</span>
+    </section>
+    <section class="card">
+        <div class="label">Vehicle Speed (radar)</div>
+        <div class="value" id="radar">&mdash;</div>
+        <p class="detail">Latest sensor reading</p>
+    </section>
+    <section class="card">
+        <div class="label">Pending Events</div>
+        <div class="value" id="pending-events">&mdash;</div>
+        <p class="detail">Events waiting in the outbox</p>
+    </section>
+    <section class="card">
+        <div class="label">Queue (urgent / normal)</div>
+        <div class="value" id="queue-size">&mdash;</div>
+        <p class="detail" id="queue-detail">Dropped: &mdash;</p>
+    </section>
+    <section class="card">
+        <div class="label">Active Processes</div>
+        <div class="value" id="active-processes">&mdash;</div>
+        <p class="detail">Workers reporting as running</p>
+    </section>
+</div>
+
+<section class="card">
+    <h2 class="section-title">Process Health</h2>
+    <table>
+        <thead><tr><th>Process</th><th>PID</th><th>Status</th><th>CPU (%)</th><th>Memory (MB)</th></tr></thead>
+        <tbody id="workers"><tr><td colspan="5" class="empty">Waiting for API data...</td></tr></tbody>
+    </table>
+</section>
+
+<section class="card">
+    <h2 class="section-title">Recent Sensor Readings</h2>
+    <table>
+        <thead><tr><th>Sensor</th><th>Value</th><th>Unit</th><th>Timestamp</th></tr></thead>
+        <tbody id="readings"><tr><td colspan="4" class="empty">Waiting for readings...</td></tr></tbody>
+    </table>
+</section>
+
+<section class="card">
+    <h2 class="section-title">Recent Decisions</h2>
+    <table>
+        <thead><tr><th>Action</th><th>Value (km/h)</th><th>Reason</th><th>Timestamp</th></tr></thead>
+        <tbody id="decisions"><tr><td colspan="4" class="empty">Waiting for decisions...</td></tr></tbody>
+    </table>
+</section>
+
+<script>
+    // Must match pedestrian_surge_threshold in config/node.yaml.
+    const SURGE_THRESHOLD = 15;
+
+    function safeText(value) { return String(value ?? "—"); }
+
+    function formatTime(value) {
+        if (!value) return "—";
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? safeText(value) : date.toLocaleTimeString();
+    }
+
+    function makeCell(value) {
+        const td = document.createElement("td");
+        td.textContent = safeText(value);
+        return td;
+    }
+
+    function showMessage(tbody, columns, message) {
+        tbody.replaceChildren();
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+        cell.colSpan = columns;
+        cell.className = "empty";
+        cell.textContent = message;
+        row.appendChild(cell);
+        tbody.appendChild(row);
+    }
+
+    function setBadge(element, text, cssClass) {
+        element.textContent = text;
+        element.className = `badge ${cssClass}`;
+    }
+
+    async function setWanConnection(online) {
+        const message = document.getElementById("wan-message");
+        const offlineButton = document.getElementById("wan-offline");
+        const onlineButton = document.getElementById("wan-online");
+        offlineButton.disabled = true;
+        onlineButton.disabled = true;
+        message.textContent = "Updating WAN connection...";
+        try {
+            const response = await fetch(online ? "/api/wan/online" : "/api/wan/offline", { method: "POST" });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const result = await response.json();
+            message.textContent = result.message;
+            await refreshDashboard();
+        } catch (error) {
+            message.textContent = `Failed to update WAN connection: ${error.message}`;
+        } finally {
+            offlineButton.disabled = false;
+            onlineButton.disabled = false;
+        }
+    }
+
+    document.getElementById("wan-offline").addEventListener("click", () => setWanConnection(false));
+    document.getElementById("wan-online").addEventListener("click", () => setWanConnection(true));
+
+    function latest(readings, sensorId) {
+        return readings.filter(item => item.sensor_id === sensorId).at(-1);
+    }
+
+    async function refreshDashboard() {
+        const connection = document.getElementById("connection");
+        try {
+            const response = await fetch("/api/status", { cache: "no-store" });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+
+            setBadge(document.getElementById("wan-status"),
+                data.wan_online === true ? "WAN ONLINE" : "WAN OFFLINE (DISCONNECTED)",
+                data.wan_online === true ? "running" : "stopped");
+            connection.textContent = `Connected · Last updated ${new Date().toLocaleTimeString()}`;
+
+            const readings = data.recent_readings || [];
+            const ped = latest(readings, "PED_CROSSWALK_COUNT");
+            const radar = latest(readings, "RADAR_SPEED");
+
+            document.getElementById("pedestrians").textContent = ped ? String(ped.value) : "—";
+            const pedStatus = document.getElementById("pedestrian-status");
+            if (ped) {
+                const surge = Number(ped.value) >= SURGE_THRESHOLD;
+                setBadge(pedStatus, surge ? "PEDESTRIAN SURGE" : "Normal", surge ? "alert" : "normal");
+            } else {
+                setBadge(pedStatus, "No data", "unknown");
+            }
+            document.getElementById("radar").textContent = radar ? `${Number(radar.value).toFixed(1)} km/h` : "—";
+
+            const sign = data.sign_state;
+            const signStatus = document.getElementById("sign-status");
+            if (sign) {
+                document.getElementById("sign-limit").textContent = `${sign.speed_limit_kmh} km/h`;
+                setBadge(signStatus, sign.surge_active ? "SURGE LIMIT ACTIVE" : "Normal limit",
+                    sign.surge_active ? "alert" : "normal");
+                document.getElementById("sign-detail").textContent = `Sign state version: ${sign.version}`;
+            }
+
+            document.getElementById("pending-events").textContent = safeText(data.pending_events ?? 0);
+
+            const queue = data.queue;
+            if (queue) {
+                document.getElementById("queue-size").textContent = `${queue.urgent.size} / ${queue.normal.size}`;
+                document.getElementById("queue-detail").textContent =
+                    `Dropped: ${queue.urgent.dropped_count} / ${queue.normal.dropped_count} (max ${queue.normal.maxsize} per lane)`;
+            }
+
+            const workerList = Object.entries(data.workers || {});
+            const active = workerList.filter(([, w]) => w.status === "running").length;
+            document.getElementById("active-processes").textContent = `${active} / ${workerList.length}`;
+
+            const workersBody = document.getElementById("workers");
+            workersBody.replaceChildren();
+            if (workerList.length === 0) {
+                showMessage(workersBody, 5, "No worker data available");
+            } else {
+                for (const [name, worker] of workerList) {
+                    const row = document.createElement("tr");
+                    row.appendChild(makeCell(name));
+                    row.appendChild(makeCell(worker.pid ?? "—"));
+                    const statusCell = document.createElement("td");
+                    const badge = document.createElement("span");
+                    setBadge(badge, worker.status ?? "unknown",
+                        worker.status === "running" ? "running" : worker.status === "stopped" ? "stopped" : "unknown");
+                    statusCell.appendChild(badge);
+                    row.appendChild(statusCell);
+                    row.appendChild(makeCell(worker.cpu_percent == null ? "—" : `${Number(worker.cpu_percent).toFixed(1)}%`));
+                    row.appendChild(makeCell(worker.memory_mb == null ? "—" : `${Number(worker.memory_mb).toFixed(2)} MB`));
+                    workersBody.appendChild(row);
+                }
+            }
+
+            const readingsBody = document.getElementById("readings");
+            readingsBody.replaceChildren();
+            if (readings.length === 0) {
+                showMessage(readingsBody, 4, "No sensor readings yet");
+            } else {
+                for (const item of [...readings].reverse()) {
+                    const row = document.createElement("tr");
+                    row.appendChild(makeCell(item.sensor_id));
+                    row.appendChild(makeCell(item.value));
+                    row.appendChild(makeCell(item.unit));
+                    row.appendChild(makeCell(formatTime(item.timestamp)));
+                    readingsBody.appendChild(row);
+                }
+            }
+
+            const decisionsBody = document.getElementById("decisions");
+            decisionsBody.replaceChildren();
+            const decisions = data.recent_decisions || [];
+            if (decisions.length === 0) {
+                showMessage(decisionsBody, 4, "No decisions recorded yet");
+            } else {
+                for (const item of [...decisions].reverse()) {
+                    const row = document.createElement("tr");
+                    row.appendChild(makeCell(item.action));
+                    row.appendChild(makeCell(item.value));
+                    row.appendChild(makeCell(item.reason));
+                    row.appendChild(makeCell(formatTime(item.timestamp)));
+                    decisionsBody.appendChild(row);
+                }
+            }
+        } catch (error) {
+            connection.textContent = `Connection failed: ${error.message}. Is the edge supervisor running?`;
+        }
+    }
+
+    refreshDashboard();
+    setInterval(refreshDashboard, 2000);
+</script>
+</body>
+</html>
