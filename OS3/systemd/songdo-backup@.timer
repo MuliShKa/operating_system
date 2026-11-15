@@ -1,0 +1,11 @@
+# Every 15 minutes; a run missed while the machine was off is done at boot.
+[Unit]
+Description=Songdo Edge %i backup every 15 minutes
+
+[Timer]
+OnCalendar=*:0/15
+Persistent=true
+RandomizedDelaySec=30
+
+[Install]
+WantedBy=timers.target

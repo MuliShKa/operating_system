@@ -70,6 +70,7 @@ PYTHONPATH=src python3 -m edge.supervisor
 
 ```bash
 python3 tests/test_os_fundamentals.py -v          # queues, IPC, race, deadlock
+python3 tests/test_backup.py -v                   # online backup, retention, flock
 python3 tests/test_surge_rule.py -v               # rule, TTL from reading time, version-guarded sign
 PYTHONPATH=src python3 tests/test_actuator.py -v  # freshness check, rejection, restore
 PYTHONPATH=src python3 tests/test_demo_integration.py -v
@@ -113,8 +114,28 @@ verifies conservation: no event lost, nothing marked `sent` that the receiver
 does not have. Exit code 0 means every check passed. Use `| tee report.txt`
 to keep the report as evidence. Stop any running node first (port 8000).
 
+## Supervision, backup and containers (W5)
+
+```bash
+bash scripts/install_service.sh --start      # systemd user units: node + backup timer
+systemctl --user status songdo-edge@OS3.service
+journalctl --user-unit songdo-edge@OS3.service -f -o short-iso
+systemctl --user list-timers 'songdo-backup@*'
+```
+
+- **systemd**: `systemd/songdo-edge@.service` restarts the node when the supervisor exits
+  with 1 (a worker died), with a start burst limit (5 in 60 s), clean SIGTERM stop, and
+  cgroup limits (512 MB, 150% CPU, 128 tasks). Units use `@PROJECT_DIR@`, filled in by the installer.
+- **Backup**: `scripts/backup.sh` takes `flock -n` (overlapping runs are skipped), then
+  `src/edge/backup.py` uses the SQLite online backup API (the node keeps writing),
+  checks `integrity_check`, renames atomically and keeps the newest 10 copies
+  (`EDGE_BACKUP_DIR`, `EDGE_BACKUP_KEEP`). `songdo-backup@.timer` runs it every 15 min.
+  Manual run: `bash scripts/backup.sh`. Test: `python3 tests/test_backup.py -v`.
+- **Container**: `docker compose -f container/compose.yaml up --build`, then
+  `docker inspect --format '{{.State.Health.Status}}' songdo-edge-os3` (healthy when the API
+  answers and every worker is running). Data lives in a volume; runs as an unprivileged user.
+
 ## Not implemented yet
 
-- Automatic restart of a crashed worker (the supervisor stops everything instead).
-- systemd unit, Dockerfile and compose file.
-- Backup script with `flock`.
+- Automatic restart of a single crashed worker inside the supervisor (today the whole node
+  exits with 1 and systemd/Docker restart it).
