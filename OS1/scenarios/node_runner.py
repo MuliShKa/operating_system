@@ -17,7 +17,6 @@ import socket
 import subprocess
 import sys
 import time
-from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from urllib.request import Request, urlopen
@@ -62,9 +61,8 @@ def _port_in_use(port: int) -> bool:
         return sock.connect_ex(("127.0.0.1", port)) == 0
 
 
-@contextmanager
-def running_node(run_dir: Path, extra_env: dict[str, str] | None = None):
-    """Start the supervisor in the background, wait until ready, stop it at the end."""
+def start_node(run_dir: Path, extra_env: dict[str, str] | None = None) -> subprocess.Popen:
+    """Start the supervisor in the background and wait until its 8 workers are running."""
     for port in (API_PORT, RECEIVER_PORT):
         if _port_in_use(port):
             raise SystemExit(
@@ -80,35 +78,37 @@ def running_node(run_dir: Path, extra_env: dict[str, str] | None = None):
         "EDGE_RECEIVER_PORT": str(RECEIVER_PORT),
         **(extra_env or {}),
     }
-    log = (run_dir / "node.log").open("w", encoding="utf-8")
-    process = subprocess.Popen(
-        [sys.executable, "-m", "edge.supervisor"],
-        cwd=OS1_DIR, env=env, stdout=log, stderr=subprocess.STDOUT,
-    )
-    try:
-        deadline = time.monotonic() + START_TIMEOUT_S
-        while True:
-            if process.poll() is not None:
-                raise SystemExit(f"Node exited at startup, see {run_dir / 'node.log'}")
-            try:
-                status = get_status()
-                if len(running_workers(status)) == EXPECTED_WORKERS:
-                    break
-            except OSError:
-                pass
-            if time.monotonic() > deadline:
-                raise SystemExit(f"Node not ready after {START_TIMEOUT_S} s, see node.log")
-            time.sleep(0.3)
-        yield process
-    finally:
-        if process.poll() is None:
-            process.send_signal(signal.SIGTERM)
-            try:
-                process.wait(STOP_TIMEOUT_S)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait()
-        log.close()
+    with (run_dir / "node.log").open("w", encoding="utf-8") as log:
+        # The child gets its own copy of the log file descriptor, so closing ours is fine.
+        process = subprocess.Popen(
+            [sys.executable, "-m", "edge.supervisor"],
+            cwd=OS1_DIR, env=env, stdout=log, stderr=subprocess.STDOUT,
+        )
+
+    deadline = time.monotonic() + START_TIMEOUT_S
+    while True:
+        if process.poll() is not None:
+            raise SystemExit(f"Node exited at startup, see {run_dir / 'node.log'}")
+        try:
+            if len(running_workers(get_status())) == EXPECTED_WORKERS:
+                return process
+        except OSError:
+            pass
+        if time.monotonic() > deadline:
+            stop_node(process)
+            raise SystemExit(f"Node not ready after {START_TIMEOUT_S} s, see node.log")
+        time.sleep(0.3)
+
+
+def stop_node(process: subprocess.Popen) -> None:
+    """SIGTERM (like systemd stop), then SIGKILL if it does not stop in time."""
+    if process.poll() is None:
+        process.send_signal(signal.SIGTERM)
+        try:
+            process.wait(STOP_TIMEOUT_S)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
 
 
 def write_report(run_dir: Path, report: dict) -> Path:

@@ -22,4 +22,4 @@ if ! flock -n 9; then
 fi
 
 cd "$PROJECT_ROOT"
-EDGE_DATABASE_PATH="$DB_PATH" PYTHONPATH="$PROJECT_ROOT/src" "$PYTHON" -m edge.backup
+EDGE_DATABASE_PATH="$DB_PATH" PYTHONPATH="$PROJECT_ROOT/src" "$PYTHON" -m edge.core.backup

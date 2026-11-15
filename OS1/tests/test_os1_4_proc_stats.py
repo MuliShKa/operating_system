@@ -12,8 +12,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from edge import proc_sampler, storage  # noqa: E402
-from edge.proc_stats import parse_context_switches, parse_stat, read_process  # noqa: E402
+from edge.os1_4_contention import proc_sampler  # noqa: E402
+from edge.core import storage  # noqa: E402
+from edge.os1_4_contention.proc_stats import parse_context_switches, parse_stat, read_process  # noqa: E402
 
 # A /proc/[pid]/stat line whose name contains spaces and brackets.
 STAT = "42 (my (odd) name) S 1 42 42 0 -1 4194560 100 0 0 0 250 50 0 0 20 0 3 0 99 1000 512"
@@ -52,9 +53,9 @@ class TestSampler(unittest.TestCase):
                 storage.DATABASE_PATH = Path(folder) / "node.db"
                 storage.initialize_database()
                 state = {
-                    "worker_status:Me": "running", "worker_pid:Me": os.getpid(),
-                    "worker_status:Gone": "running", "worker_pid:Gone": 2**22 + 1,
-                    "worker_status:Off": "stopped", "worker_pid:Off": os.getpid(),
+                    "worker:Me": {"pid": os.getpid(), "status": "running"},
+                    "worker:Gone": {"pid": 2**22 + 1, "status": "running"},
+                    "worker:Off": {"pid": os.getpid(), "status": "stopped"},
                 }
                 samples = proc_sampler.sample_once(state)
 

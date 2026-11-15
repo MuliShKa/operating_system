@@ -14,7 +14,7 @@ import node_runner
 
 sys.path.insert(0, str(node_runner.OS1_DIR / "src"))
 
-from edge.occupancy import TURNSTILES, count_entries  # noqa: E402
+from edge.os1_2_race.occupancy import TURNSTILES, count_entries  # noqa: E402
 
 
 def main() -> int:

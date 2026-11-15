@@ -17,7 +17,7 @@ from contextlib import closing
 from datetime import datetime
 from pathlib import Path
 
-from edge import storage
+from edge.core import storage
 
 BACKUP_DIR = Path(os.environ.get("EDGE_BACKUP_DIR", str(storage.DATABASE_PATH.parent / "backups")))
 KEEP = int(os.environ.get("EDGE_BACKUP_KEEP", "10"))

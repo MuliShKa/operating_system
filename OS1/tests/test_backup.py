@@ -13,7 +13,7 @@ from pathlib import Path
 OS1_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(OS1_DIR / "src"))
 
-from edge import backup  # noqa: E402
+from edge.core import backup  # noqa: E402
 
 
 def make_database(path: Path, rows: int) -> None:

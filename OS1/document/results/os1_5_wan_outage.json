@@ -2,13 +2,13 @@
   "scenario": "OS1-5",
   "minutes": 10,
   "outage_seconds": 600.0,
-  "backlog_events": 1202,
+  "backlog_events": 1200,
   "events_during_outage": 1198,
-  "decisions_during_outage": 628,
-  "drain_seconds": 11.5,
+  "decisions_during_outage": 598,
+  "drain_seconds": 9.5,
   "conservation": {
     "expected": 1202,
-    "received": 1224,
+    "received": 1220,
     "lost": 0,
     "duplicates": 0
   },

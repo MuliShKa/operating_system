@@ -18,7 +18,7 @@ import json
 import os
 from pathlib import Path
 
-from edge import storage
+from edge.core import storage
 from edge.node_config import INVENTORY, LATITUDE, LONGITUDE, PROJECT_DIR
 
 READ_CHUNK = 64 * 1024
@@ -115,22 +115,13 @@ def cache_path() -> tuple[Path, str]:
 
 
 def save_inventory(buildings: list[dict], source: str) -> None:
-    with storage._managed_connection() as connection:
-        connection.execute("DELETE FROM building_inventory")
-        connection.executemany(
-            """
-            INSERT INTO building_inventory (building_id, name, properties, geometry, source)
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            [
-                (
-                    b["building_id"], b["name"],
-                    json.dumps(b["properties"], ensure_ascii=False),
-                    json.dumps(b["geometry"]), source,
-                )
-                for b in buildings
-            ],
-        )
+    """Replace the stored inventory, in one transaction."""
+    insert = "INSERT INTO building_inventory (building_id, name, properties, geometry, source) VALUES (?, ?, ?, ?, ?)"
+    statements = [("DELETE FROM building_inventory", ())]
+    for b in buildings:
+        properties = json.dumps(b["properties"], ensure_ascii=False)
+        statements.append((insert, (b["building_id"], b["name"], properties, json.dumps(b["geometry"]), source)))
+    storage.execute_in_one_transaction(statements)
 
 
 def load_inventory(path: Path | None = None, source: str | None = None) -> dict:

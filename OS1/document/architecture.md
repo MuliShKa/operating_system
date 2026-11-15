@@ -2,8 +2,50 @@
 
 Node `EDGE_NODE_OS1_CONVENSIA` · lat 37.3888, lon 126.6534
 
+> Each scenario: what was expected → OS concept → diagram → result → **code** (click a file to open it at the right line).
+
 > **Mission:** sense, decide and act **locally**, and keep working when the Internet is down,
 > **without losing a single event.**
+
+## Source layout
+
+One folder per scenario, plus `core/` for what they all share.
+
+```
+src/edge/
+├── supervisor.py          starts the 8 worker processes, stops and joins them
+├── node_config.py         reads config/node.yaml (sensors, rule, ports)
+│
+├── core/                  shared by every scenario
+│   ├── models.py          SensorEvent, ActuatorCommand
+│   ├── bounded_queue.py   fixed-size queue between processes (drop oldest)
+│   ├── ipc.py             the 2 queues + the stop / wan_online flags
+│   ├── storage.py         SQLite in WAL mode, event + outbox in one transaction
+│   ├── api_server.py      local dashboard and /api/status
+│   └── backup.py          online backup (run by the systemd timer)
+│
+├── os1_1_ingestion/       OS1-1  sensors + cached building inventory
+│   ├── sensors.py         SensorGen: CO2 and temperature, 1 reading/s each
+│   ├── processor.py       stores each reading, tagged with the building
+│   ├── inventory.py       raw file descriptors, ray casting
+│   └── vworld_fetch.py    optional download of real VWorld data
+│
+├── os1_2_race/            OS1-2  race condition vs mutex
+│   ├── shared_counter.py  counter in shared memory, with / without lock
+│   └── occupancy.py       80 turnstile processes
+│
+├── os1_3_ventilation/     OS1-3  CO2 rule + command expiry
+│   ├── decision.py        CO2 > 1000 ppm -> damper 100 %, expires 15 s after the reading
+│   └── actuator.py        applies or rejects the command (monotonic clock)
+│
+├── os1_4_contention/      OS1-4  /proc profiling
+│   ├── proc_stats.py      parses /proc/[pid]/stat and /status
+│   └── proc_sampler.py    samples every worker every 2.0 s
+│
+└── os1_5_wan_outage/      OS1-5  Internet cut
+    ├── sync_worker.py     sends the outbox only while the WAN is up
+    └── receiver.py        mock upstream server, ignores duplicate event IDs
+```
 
 ---
 
@@ -43,6 +85,22 @@ The node never calls an online map at runtime: it works from a **local cache**.
 *The cache is a labelled fixture: the VWorld account needs a Korean identity check that failed.*
 
 **Result:** 6/6 checks · 11 CO2 + 11 temperature readings, all tagged with the building.
+
+**Code:**
+
+| What | File | Function |
+|---|---|---|
+| Read the file with a raw fd (`os.open` / `os.read` / `os.close`) | [`inventory.py`](../src/edge/os1_1_ingestion/inventory.py#L32) | `read_file_with_fd` |
+| Parse GeoJSON buildings | [`inventory.py`](../src/edge/os1_1_ingestion/inventory.py#L58) | `parse_buildings` |
+| Ray casting: point inside polygon | [`inventory.py`](../src/edge/os1_1_ingestion/inventory.py#L91) | `point_in_ring`, `find_building` |
+| Cache or fixture, store in SQLite | [`inventory.py`](../src/edge/os1_1_ingestion/inventory.py#L136) | `load_inventory`, `save_inventory` |
+| Loaded once at startup | [`supervisor.py`](../src/edge/supervisor.py#L62) | `main` |
+| Readings generated (CO2, temperature) | [`sensors.py`](../src/edge/os1_1_ingestion/sensors.py#L10) | `run_sensors` |
+| Each reading tagged with `building_id` | [`processor.py`](../src/edge/os1_1_ingestion/processor.py#L21) | `run_processor` |
+| Node coordinates, sensors, cache path | [`node.yaml`](../config/node.yaml) |  |
+| The fixture file (labelled, not VWorld) | [`os1_convensia_buildings.fixture.geojson`](../sources/vworld/os1_convensia_buildings.fixture.geojson) |  |
+| Table `building_inventory` | [`schema.sql`](../sql/schema.sql#L50) |  |
+| Scenario / tests | [`os1_1_ingestion.py`](../scenarios/os1_1_ingestion.py) · [`test_os1_1_inventory.py`](../tests/test_os1_1_inventory.py) |  |
 
 ---
 
@@ -85,6 +143,16 @@ The node never calls an online map at runtime: it works from a **local cache**.
 | Mutex | **80 every time** |
 
 All 80 processes joined, exit code 0.
+
+**Code:**
+
+| What | File | Function |
+|---|---|---|
+| Counter in shared memory (`RawValue`) + lock | [`shared_counter.py`](../src/edge/os1_2_race/shared_counter.py#L6) | `SharedCounter` |
+| Protected increment (mutex) | [`shared_counter.py`](../src/edge/os1_2_race/shared_counter.py#L16) | `increment` |
+| Unprotected read → pause → write | [`shared_counter.py`](../src/edge/os1_2_race/shared_counter.py#L26) | `unsafe_increment` |
+| 80 turnstile processes, Barrier start, join | [`occupancy.py`](../src/edge/os1_2_race/occupancy.py#L34) | `count_entries`, `turnstile` |
+| Scenario / tests | [`os1_2_race.py`](../scenarios/os1_2_race.py) · [`test_os1_2_race.py`](../tests/test_os1_2_race.py) |  |
 
 ---
 
@@ -138,6 +206,19 @@ Why **monotonic**? The wall clock can jump (NTP, manual change); the monotonic c
 
 11/11 checks.
 
+**Code:**
+
+| What | File | Function |
+|---|---|---|
+| Rule (threshold, action, TTL 15.0 s) | [`node.yaml`](../config/node.yaml#L14) | `rule:` |
+| Reading stamped with `time.monotonic()` | [`sensors.py`](../src/edge/os1_1_ingestion/sensors.py#L12) | `run_sensors` |
+| CO2 > 1000 → command, expiry = reading + 15 s | [`decision.py`](../src/edge/os1_3_ventilation/decision.py#L13) | `make_command` |
+| Expiry check | [`decision.py`](../src/edge/os1_3_ventilation/decision.py#L31) | `is_expired` |
+| Command sent on the `commands` queue | [`processor.py`](../src/edge/os1_1_ingestion/processor.py#L43) | `run_processor` |
+| Actuator: check just before acting → APPLIED / EXPIRED | [`actuator.py`](../src/edge/os1_3_ventilation/actuator.py#L16) | `check_command`, `run_actuator` |
+| Bounded queues (`sensor_events`, `commands`) | [`ipc.py`](../src/edge/core/ipc.py#L7) | `IpcChannels` |
+| Scenario / tests | [`os1_3_ventilation.py`](../scenarios/os1_3_ventilation.py) · [`test_os1_3_ventilation.py`](../tests/test_os1_3_ventilation.py) |  |
+
 ---
 
 ## 4. OS1-4 – Process profiling under load
@@ -177,8 +258,21 @@ Experiment: 30 s idle, then 30 s with 28 CPU-burner processes.
 
 | Processor worker | Idle | Under load |
 |---|---|---|
-| Involuntary switches / s | ~4 | **~12** |
+| Involuntary switches / s | ~2 | **~14** |
+| Voluntary switches / s (waits for a reading) | ~37 | ~26 |
 | Sampling period | 2.0 s | 2.0 s |
+
+**Code:**
+
+| What | File | Function |
+|---|---|---|
+| Parse `/proc/[pid]/stat` (CPU ticks, RSS) | [`proc_stats.py`](../src/edge/os1_4_contention/proc_stats.py#L13) | `parse_stat` |
+| Parse `/proc/[pid]/status` (context switches) | [`proc_stats.py`](../src/edge/os1_4_contention/proc_stats.py#L27) | `parse_context_switches` |
+| Read one process | [`proc_stats.py`](../src/edge/os1_4_contention/proc_stats.py#L38) | `read_process` |
+| Sample every worker, write `process_health` | [`proc_sampler.py`](../src/edge/os1_4_contention/proc_sampler.py#L12) | `sample_once` |
+| Fixed 2.0 s monotonic schedule, CPU % | [`proc_sampler.py`](../src/edge/os1_4_contention/proc_sampler.py#L28) | `run_proc_sampler` |
+| Table `process_health` | [`schema.sql`](../sql/schema.sql#L23) |  |
+| Scenario (idle + CPU burners) / tests | [`os1_4_contention.py`](../scenarios/os1_4_contention.py) · [`test_os1_4_proc_stats.py`](../tests/test_os1_4_proc_stats.py) |  |
 
 ---
 
@@ -205,12 +299,12 @@ Experiment: 30 s idle, then 30 s with 28 CPU-burner processes.
        |  continue               |                      |    nothing sent   |
        |-----------------------> |                      |  ---X             |
        |                         |  outbox grows        |                   |
-       |                         |  -> 1202 events      |                   |
+       |                         |  -> 1200 events      |                   |
   ===== WAN RESTORED ======================================================= |
        |                         |   backlog            |                   |
        |                         |--------------------> |  batches of 50    |
        |                         |                      |-----------------> |
-       |                         |                      |  drained 11.5 s   |
+       |                         |                      |  drained 9.5 s    |
        |                         |                      |                   |
                               0 lost  -  0 duplicates
 ```
@@ -219,6 +313,19 @@ Experiment: 30 s idle, then 30 s with 28 CPU-burner processes.
 |---|---|
 | Workers crashed or PID changed | none |
 | Dashboard while offline | answering |
-| Decisions made offline | 628 |
-| Backlog / drain time | 1202 events / 11.5 s |
+| Decisions made offline | 598 |
+| Backlog / drain time | 1200 events / 9.5 s |
 | Lost / duplicates | **0 / 0** |
+
+**Code:**
+
+| What | File | Function |
+|---|---|---|
+| Event + outbox row in ONE transaction | [`storage.py`](../src/edge/core/storage.py#L37) | `save_event` |
+| SQLite WAL mode + busy timeout | [`storage.py`](../src/edge/core/storage.py#L15) | `connect`, `initialize_database` |
+| Tables `events`, `outbox` | [`schema.sql`](../sql/schema.sql#L6) |  |
+| WAN flag (starts online) | [`ipc.py`](../src/edge/core/ipc.py#L25) | `IpcChannels` |
+| Dashboard buttons cut / restore the WAN | [`api_server.py`](../src/edge/core/api_server.py#L55) | `do_POST` |
+| Sends batches of 50 only while the WAN is up | [`sync_worker.py`](../src/edge/os1_5_wan_outage/sync_worker.py#L25) | `run_sync_worker` |
+| Receiver: `INSERT OR IGNORE` on event ID → no duplicate | [`receiver.py`](../src/edge/os1_5_wan_outage/receiver.py#L26) | `accept_event` |
+| Scenario (cut, drain, conservation check) / tests | [`os1_5_wan_outage.py`](../scenarios/os1_5_wan_outage.py) · [`test_os1_5_outage.py`](../tests/test_os1_5_outage.py) |  |

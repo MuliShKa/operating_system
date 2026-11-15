@@ -12,7 +12,8 @@ from pathlib import Path
 OS1_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(OS1_DIR / "src"))
 
-from edge import inventory, storage  # noqa: E402
+from edge.os1_1_ingestion import inventory  # noqa: E402
+from edge.core import storage  # noqa: E402
 from edge.node_config import INVENTORY, LATITUDE, LONGITUDE  # noqa: E402
 
 FIXTURE = OS1_DIR / INVENTORY["fixture"]
@@ -98,7 +99,7 @@ class TestInventory(unittest.TestCase):
 
 class TestVworldFetch(unittest.TestCase):
     def test_url_has_the_box_around_the_node_and_no_network_call(self):
-        from edge import vworld_fetch
+        from edge.os1_1_ingestion import vworld_fetch
         url = vworld_fetch.build_url("KEY", "LAYER", 0.003, None)
         self.assertIn("request=GetFeature", url)
         self.assertIn("data=LAYER", url)

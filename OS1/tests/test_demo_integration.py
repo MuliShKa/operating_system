@@ -11,11 +11,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from edge import storage  # noqa: E402
-from edge.actuator import run_actuator  # noqa: E402
-from edge.ipc import IpcChannels  # noqa: E402
-from edge.models import SensorEvent  # noqa: E402
-from edge.processor import run_processor  # noqa: E402
+from edge.core import storage  # noqa: E402
+from edge.os1_3_ventilation.actuator import run_actuator  # noqa: E402
+from edge.core.ipc import IpcChannels  # noqa: E402
+from edge.core.models import SensorEvent  # noqa: E402
+from edge.os1_1_ingestion.processor import run_processor  # noqa: E402
 
 
 class TestDemoIntegration(unittest.TestCase):

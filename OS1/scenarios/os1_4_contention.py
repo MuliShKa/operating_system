@@ -70,7 +70,8 @@ def main() -> int:
     args = parser.parse_args()
 
     run_dir = node_runner.new_run_dir("os1_4")
-    with node_runner.running_node(run_dir):
+    node = node_runner.start_node(run_dir)
+    try:
         workers = node_runner.running_workers(node_runner.get_status())
 
         print(f"Idle phase: {args.seconds:g} s")
@@ -91,6 +92,8 @@ def main() -> int:
             stop.set()
             for burner in burners:
                 burner.join()
+    finally:
+        node_runner.stop_node(node)
 
     samples = read_samples(run_dir)
     idle = summarize(samples, idle_start, idle_end)

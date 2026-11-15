@@ -59,7 +59,8 @@ def main() -> int:
     args = parser.parse_args()
 
     run_dir = node_runner.new_run_dir("os1_5")
-    with node_runner.running_node(run_dir):
+    node = node_runner.start_node(run_dir)
+    try:
         workers_before = node_runner.running_workers(node_runner.get_status())
 
         print(f"Cutting the WAN for {args.minutes:g} min")
@@ -89,6 +90,8 @@ def main() -> int:
                 break
             time.sleep(0.5)
         drain_s = round(time.monotonic() - restored_at, 1)
+    finally:
+        node_runner.stop_node(node)
 
     expected, still_pending = outbox_up_to(run_dir, during["last_id"])
     conservation = check_conservation(expected, received_ids(run_dir))

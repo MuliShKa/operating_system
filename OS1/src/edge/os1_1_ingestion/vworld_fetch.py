@@ -1,6 +1,6 @@
 """
 OS1-1: download the building footprints around the node from VWorld, once,
-and write them to the local cache read by edge.inventory.
+and write them to the local cache read by edge.os1_1_ingestion.inventory.
 
 The node itself never goes online for this: run it by hand (or before a demo)
 while the WAN is available.
@@ -10,7 +10,7 @@ Needs:
   vworld_layer     the building layer ID, set in config/node.yaml (or VWORLD_LAYER)
   VWORLD_DOMAIN    the domain registered with the key, if VWorld asks for one
 
-Run: PYTHONPATH=src python -m edge.vworld_fetch
+Run: PYTHONPATH=src python -m edge.os1_1_ingestion.vworld_fetch
 
 Not tested against the live API (no key in the project). The request follows the
 VWorld 2D data API (service=data, request=GetFeature); check the parameters in

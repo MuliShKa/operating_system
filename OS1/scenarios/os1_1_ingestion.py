@@ -29,9 +29,12 @@ def main() -> int:
     args = parser.parse_args()
 
     run_dir = node_runner.new_run_dir("os1_1")
-    with node_runner.running_node(run_dir):
+    node = node_runner.start_node(run_dir)
+    try:
         time.sleep(args.seconds)
         status = node_runner.get_status()
+    finally:
+        node_runner.stop_node(node)
 
     building = status.get("building") or {}
     node_building = (building.get("node_building") or {}).get("building_id")

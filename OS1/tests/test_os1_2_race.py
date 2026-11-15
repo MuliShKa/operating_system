@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from edge.occupancy import TURNSTILES, count_entries  # noqa: E402
+from edge.os1_2_race.occupancy import TURNSTILES, count_entries  # noqa: E402
 
 
 class TestOccupancyRace(unittest.TestCase):

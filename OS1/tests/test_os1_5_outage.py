@@ -12,8 +12,10 @@ from pathlib import Path
 OS1_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(OS1_DIR / "src"))
 
-from edge import receiver, storage, sync_worker  # noqa: E402
-from edge.ipc import IpcChannels  # noqa: E402
+from edge.os1_5_wan_outage import receiver  # noqa: E402
+from edge.core import storage  # noqa: E402
+from edge.os1_5_wan_outage import sync_worker  # noqa: E402
+from edge.core.ipc import IpcChannels  # noqa: E402
 
 spec = importlib.util.spec_from_file_location(
     "os1_5_wan_outage", OS1_DIR / "scenarios" / "os1_5_wan_outage.py"
@@ -74,7 +76,7 @@ class TestReceiverAndSync(unittest.TestCase):
             sync_worker.deliver_event = original_deliver
             channels.stop.wait = original_wait
         self.assertEqual(sent, [])
-        self.assertEqual(storage.get_pending_event_count(), 1)
+        self.assertEqual(storage.count_pending_events(), 1)
 
     def test_wan_starts_online(self):
         channels = IpcChannels(multiprocessing.get_context("spawn"))

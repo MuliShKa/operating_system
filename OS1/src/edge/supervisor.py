@@ -1,144 +1,107 @@
-"""Start and shut down the connected edge-node demo workers."""
+"""
+The supervisor: starts the 8 worker processes, watches them, and stops them cleanly.
 
-from __future__ import annotations
+Run: PYTHONPATH=src python -m edge.supervisor
+"""
 
 import multiprocessing
 import os
 import signal
 import time
 
-from edge import inventory, storage
-from edge.SensorGen import run_sensor_gen
-from edge.actuator import run_actuator
-from edge.api_server import run_api_server
-from edge.ipc import IpcChannels
+from edge.core import storage
+from edge.core.api_server import run_api_server
+from edge.core.ipc import IpcChannels
 from edge.node_config import API_PORT
-from edge.proc_sampler import run_proc_sampler
-from edge.processor import run_processor
-from edge.receiver import run_receiver
-from edge.sync_worker import run_sync_worker
+from edge.os1_1_ingestion import inventory
+from edge.os1_1_ingestion.processor import run_processor
+from edge.os1_1_ingestion.sensors import run_sensors
+from edge.os1_3_ventilation.actuator import run_actuator
+from edge.os1_4_contention.proc_sampler import run_proc_sampler
+from edge.os1_5_wan_outage.receiver import run_receiver
+from edge.os1_5_wan_outage.sync_worker import run_sync_worker
 
-PROCESS_NAMES = (
-    "SensorGen",
-    "Processor",
-    "Actuator",
-    "HealthMon",
-    "ProcSampler",
-    "API",
-    "Receiver",
-    "SyncWorker",
-)
-SHUTDOWN_TIMEOUT_SECONDS = 3.0
-
-_shutdown_requested = False
+SHUTDOWN_TIMEOUT_S = 3.0
+stop_requested = False
 
 
-def _worker_main(process_name, target, args, state) -> None:
-    # Demo integration: publish worker lifecycle to the dashboard's shared state.
-    state[f"worker_status:{process_name}"] = "running"
-    state[f"worker_pid:{process_name}"] = os.getpid()
+def run_health_monitor(channels) -> None:
+    """Write a heartbeat into process_health every 5 s."""
+    while not channels.stop.is_set():
+        storage.save_process_health("HealthMon", "running")
+        channels.stop.wait(5)
+
+
+def run_worker(name, target, args, state) -> None:
+    """Runs inside each child process: publish its PID for the dashboard, then do the work."""
+    state[f"worker:{name}"] = {"pid": os.getpid(), "status": "running"}
     try:
         target(*args)
     finally:
-        state[f"worker_status:{process_name}"] = "stopped"
+        state[f"worker:{name}"] = {"pid": os.getpid(), "status": "stopped"}
 
 
-def _run_health_monitor(state, stop_event) -> None:
-    # Demo integration: persist a health heartbeat while the node is running.
-    while not stop_event.is_set():
-        storage.save_process_health("HealthMon", "running")
-        state["last_health_check"] = time.time()
-        if stop_event.wait(5):
-            break
-
-
-def _request_shutdown(_signum: int, _frame: object) -> None:
-    global _shutdown_requested
-    _shutdown_requested = True
-
-
-def start_processes(context, channels, state):
-    # Connect the sensor, processor, actuator, health monitors, API, receiver and sync worker.
-    targets = {
-        "SensorGen": (run_sensor_gen, (channels,)),
-        "Processor": (run_processor, (channels, state)),
-        "Actuator": (run_actuator, (channels, state)),
-        "HealthMon": (_run_health_monitor, (state, channels.stop)),
-        "ProcSampler": (run_proc_sampler, (channels, state)),
-        "API": (run_api_server, (state, channels.stop, channels)),
-        "Receiver": (run_receiver, (channels.stop,)),
-        "SyncWorker": (run_sync_worker, (channels, state)),
-    }
-
-    workers = {}
-
-    for process_name in PROCESS_NAMES:
-        target, args = targets[process_name]
-        state[f"worker_status:{process_name}"] = "starting"
-
-        process = context.Process(
-            name=process_name,
-            target=_worker_main,
-            args=(process_name, target, args, state),
-        )
-
-        process.start()
-        workers[process_name] = process
-
-    return workers
-
-def stop_processes(workers, channels) -> None:
-    channels.stop.set()
-    for process in workers.values():
-        process.join(SHUTDOWN_TIMEOUT_SECONDS)
-        if process.is_alive():
-            process.terminate()
-            process.join()
+def on_signal(_signum, _frame) -> None:
+    # Ctrl+C (SIGINT) or systemd/docker stop (SIGTERM): only set a flag, the main loop does the rest.
+    global stop_requested
+    stop_requested = True
 
 
 def main() -> int:
-    global _shutdown_requested
-    _shutdown_requested = False
-    signal.signal(signal.SIGTERM, _request_shutdown)
-    signal.signal(signal.SIGINT, _request_shutdown)
+    signal.signal(signal.SIGINT, on_signal)
+    signal.signal(signal.SIGTERM, on_signal)
 
+    # "spawn": every worker is a fresh Python process with its own memory.
     context = multiprocessing.get_context("spawn")
     manager = context.Manager()
-    state = manager.dict()
+    state = manager.dict()  # shared dictionary read by the dashboard
     channels = IpcChannels(context)
-    workers = {}
 
+    storage.initialize_database()
+    state["pending_events"] = storage.count_pending_events()
+    # OS1-1: read the cached building inventory once, before the sensors start.
+    state["building"] = inventory.load_inventory()
+    print(f"Building inventory: {state['building']}", flush=True)
+
+    workers = {
+        "SensorGen": (run_sensors, (channels,)),
+        "Processor": (run_processor, (channels, state)),
+        "Actuator": (run_actuator, (channels, state)),
+        "HealthMon": (run_health_monitor, (channels,)),
+        "ProcSampler": (run_proc_sampler, (channels, state)),
+        "API": (run_api_server, (channels, state)),
+        "Receiver": (run_receiver, (channels.stop,)),
+        "SyncWorker": (run_sync_worker, (channels, state)),
+    }
+    processes = {
+        name: context.Process(name=name, target=run_worker, args=(name, target, args, state))
+        for name, (target, args) in workers.items()
+    }
+    for process in processes.values():
+        process.start()
+    print(f"Started workers: {', '.join(processes)}. Dashboard: http://127.0.0.1:{API_PORT}", flush=True)
+
+    exit_code = 0
     try:
-        # Demo integration: initialize the database before the Processor starts.
-        storage.initialize_database()
-        state["pending_events"] = storage.get_pending_event_count()
-        # OS1-1: read the cached building inventory once, before the sensors start.
-        building = inventory.load_inventory()
-        state["building"] = building
-        print(f"Building inventory: {building}", flush=True)
-        workers = start_processes(context, channels, state)
-        print(
-            "Started workers: "
-            f"{', '.join(workers)}. Dashboard: http://127.0.0.1:{API_PORT}",
-            flush=True,
-        )
-
-        while not _shutdown_requested:
-            exited = [
-                name for name, process in workers.items()
-                if not process.is_alive()
-            ]
-            if exited:
-                print(f"Worker exited unexpectedly: {', '.join(exited)}", flush=True)
-                return 1
+        while not stop_requested:
+            dead = [name for name, process in processes.items() if not process.is_alive()]
+            if dead:
+                print(f"Worker exited unexpectedly: {', '.join(dead)}", flush=True)
+                exit_code = 1  # systemd / docker restart the whole node
+                break
             time.sleep(0.2)
     finally:
-        if workers:
-            stop_processes(workers, channels)
+        # Ask every worker to stop, then join() each one so no zombie is left.
+        channels.stop.set()
+        for process in processes.values():
+            process.join(SHUTDOWN_TIMEOUT_S)
+            if process.is_alive():
+                process.terminate()
+                process.join()
         manager.shutdown()
 
     print("All workers stopped and reaped.", flush=True)
-    return 0
+    return exit_code
 
 
 if __name__ == "__main__":

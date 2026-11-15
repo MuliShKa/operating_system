@@ -21,23 +21,23 @@ import node_runner
 
 sys.path.insert(0, str(node_runner.OS1_DIR / "src"))
 
-from edge import actuator, decision  # noqa: E402
+from edge.os1_3_ventilation import actuator, decision  # noqa: E402
 
 
 def boundary_checks() -> dict[str, bool]:
     now = time.monotonic()
-    below, _ = decision.make_decision(999.9, now)
-    at, _ = decision.make_decision(1000.0, now)
-    above, expires_at = decision.make_decision(1000.1, now)
+    below = decision.make_command("e", 999.9, now)
+    at = decision.make_command("e", 1000.0, now)
+    above = decision.make_command("e", 1000.1, now)
     return {
         "999.9 ppm: no command": below is None,
         "1000 ppm: no command (rule is strictly above)": at is None,
         "1000.1 ppm: HVAC_DAMPER_PCT = 100": above is not None
         and above.action == "HVAC_DAMPER_PCT" and above.value == 100,
-        "expiry is 15.0 s after the reading": expires_at is not None
-        and abs(expires_at - now - 15.0) < 1e-9,
-        "fresh command is not expired at 14.9 s": not decision.is_command_expired(expires_at, now + 14.9),
-        "command is expired at 15.1 s": decision.is_command_expired(expires_at, now + 15.1),
+        "expiry is 15.0 s after the reading": above is not None
+        and abs(above.expires_at - now - 15.0) < 1e-9,
+        "fresh command is not expired at 14.9 s": not decision.is_expired(above.expires_at, now + 14.9),
+        "command is expired at 15.1 s": decision.is_expired(above.expires_at, now + 15.1),
     }
 
 
@@ -70,9 +70,12 @@ def node_counts(run_dir) -> dict:
 def run_live(seconds: float, delay_s: float) -> tuple[dict, int]:
     run_dir = node_runner.new_run_dir(f"os1_3-delay{delay_s:g}")
     extra_env = {"EDGE_ACTUATOR_DELAY_S": str(delay_s)}
-    with node_runner.running_node(run_dir, extra_env):
+    node = node_runner.start_node(run_dir, extra_env)
+    try:
         time.sleep(seconds)
         damper = node_runner.get_status()["damper_pct"]
+    finally:
+        node_runner.stop_node(node)
     counts = node_counts(run_dir)
     counts["damper_pct_at_end"] = damper
     counts["run_dir"] = str(run_dir)

@@ -8,6 +8,44 @@ Scope: all five OS1 scenarios (OS1-1 … OS1-5) and the deployment (systemd,
 scheduled backup, container). On the Contribution Board, OS1-1/OS1-2 are assigned to
 Arthur Warin and OS1-3 to OS1-5 to Estève; OS1-1 and OS1-2 were written here by Estève.
 
+## Source layout
+
+```
+src/edge/
+├── supervisor.py          starts the 8 worker processes, stops and joins them
+├── node_config.py         reads config/node.yaml (sensors, rule, ports)
+│
+├── core/                  shared by every scenario
+│   ├── models.py          SensorEvent, ActuatorCommand
+│   ├── bounded_queue.py   fixed-size queue between processes (drop oldest)
+│   ├── ipc.py             the 2 queues + the stop / wan_online flags
+│   ├── storage.py         SQLite in WAL mode, event + outbox in one transaction
+│   ├── api_server.py      local dashboard and /api/status
+│   └── backup.py          online backup (run by the systemd timer)
+│
+├── os1_1_ingestion/       OS1-1  sensors + cached building inventory
+│   ├── sensors.py         SensorGen: CO2 and temperature, 1 reading/s each
+│   ├── processor.py       stores each reading, tagged with the building
+│   ├── inventory.py       raw file descriptors, ray casting
+│   └── vworld_fetch.py    optional download of real VWorld data
+│
+├── os1_2_race/            OS1-2  race condition vs mutex
+│   ├── shared_counter.py  counter in shared memory, with / without lock
+│   └── occupancy.py       80 turnstile processes
+│
+├── os1_3_ventilation/     OS1-3  CO2 rule + command expiry
+│   ├── decision.py        CO2 > 1000 ppm -> damper 100 %, expires 15 s after the reading
+│   └── actuator.py        applies or rejects the command (monotonic clock)
+│
+├── os1_4_contention/      OS1-4  /proc profiling
+│   ├── proc_stats.py      parses /proc/[pid]/stat and /status
+│   └── proc_sampler.py    samples every worker every 2.0 s
+│
+└── os1_5_wan_outage/      OS1-5  Internet cut
+    ├── sync_worker.py     sends the outbox only while the WAN is up
+    └── receiver.py        mock upstream server, ignores duplicate event IDs
+```
+
 ## What is different from OS5
 
 | Part | OS1 |
@@ -54,7 +92,7 @@ coordinates, labelled in the file as *not* VWorld data. To use real data:
 1. Get a key on https://www.vworld.kr (인증키 발급).
 2. Find the building layer ID in the VWorld 2D data catalog (category 건물·시설) and set
    `inventory.vworld_layer` in `config/node.yaml`.
-3. `VWORLD_API_KEY=... PYTHONPATH=src .venv/bin/python -m edge.vworld_fetch` (never commit the key).
+3. `VWORLD_API_KEY=... PYTHONPATH=src .venv/bin/python -m edge.os1_1_ingestion.vworld_fetch` (never commit the key).
 4. Fill `retrieved_at` and `status` in `sources/source_registry.csv`.
 
 **Decision (2026-11-13): the project ships with the fixture.** A VWorld key needs a
