@@ -19,7 +19,7 @@ if [[ ! -f "$PROJECT_ROOT/src/edge/supervisor.py" ]]; then
 	exit 1
 fi
 
-printf 'Opening the dashboard at http://127.0.0.1:8000\n'
+printf 'Opening the dashboard at http://127.0.0.1:%s\n' "${EDGE_API_PORT:-8000}"
 cd "$PROJECT_ROOT"
 export PYTHONPATH="$PROJECT_ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
 # Keep the supervisor in the foreground so Ctrl+C can stop it.

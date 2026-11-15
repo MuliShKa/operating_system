@@ -9,13 +9,19 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
+from edge import storage
+from edge.config import RECEIVER_PORT
+
 
 PROJECT_DIR = Path(__file__).resolve().parents[2]
-# EDGE_RECEIVER_DATABASE_PATH lets tests and the offline demo use a throwaway database.
+# By default the receiver database sits next to the node database and follows it
+# (songdo.db -> songdo_upstream.db), so two runs with different EDGE_DATABASE_PATH
+# never mix their counts. EDGE_RECEIVER_DATABASE_PATH overrides it explicitly.
+_NODE_DB = storage.DATABASE_PATH
 RECEIVER_DATABASE = Path(
     os.environ.get(
         "EDGE_RECEIVER_DATABASE_PATH",
-        str(PROJECT_DIR / "data" / "upstream_receiver.db"),
+        str(_NODE_DB.with_name(f"{_NODE_DB.stem}_upstream.db")),
     )
 )
 
@@ -56,7 +62,7 @@ def accept_event(event: dict[str, Any]) -> bool:
     return cursor.rowcount == 1
 
 
-def run_receiver(stop_event: Any, host: str = "127.0.0.1", port: int = 8001) -> None:
+def run_receiver(stop_event: Any, host: str = "127.0.0.1", port: int = RECEIVER_PORT) -> None:
     """Run the local HTTP endpoint used by the synchronization worker."""
     initialize_receiver_database()
 

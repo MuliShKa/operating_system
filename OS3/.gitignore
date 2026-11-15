@@ -10,6 +10,9 @@ data/*.db
 data/*.db-wal
 data/*.db-shm
 
+# Scenario run output (copy official reports to document/results/)
+data/runs/
+
 # Local backup files
 *.backup
 data/backups/*.db

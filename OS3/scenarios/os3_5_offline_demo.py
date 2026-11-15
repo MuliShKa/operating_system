@@ -37,8 +37,11 @@ from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-API = "http://127.0.0.1:8000"
-RECEIVER = "http://127.0.0.1:8001/api/events"
+# Same variables the node reads: move both ports if the defaults are taken.
+API_PORT = int(os.environ.get("EDGE_API_PORT", "8000"))
+RECEIVER_PORT = int(os.environ.get("EDGE_RECEIVER_PORT", "8001"))
+API = f"http://127.0.0.1:{API_PORT}"
+RECEIVER = f"http://127.0.0.1:{RECEIVER_PORT}/api/events"
 SETTLE_SECONDS = 2.0        # let an in-flight delivery finish after the WAN cut
 EVENTS_PER_SECOND = 2       # SensorGen produces 2 readings per second
 
@@ -101,6 +104,13 @@ class Report:
     def skip(self, name: str, detail: str) -> None:
         self.rows.append(("SKIP", name, detail))
 
+    def to_dict(self) -> dict:
+        return {
+            "scenario": "OS3-5",
+            "passed": self.ok,
+            "checks": [{"status": s, "name": n, "detail": d} for s, n, d in self.rows],
+        }
+
     def print(self) -> None:
         print("\n" + "=" * 78)
         print("OS3-5 OFFLINE DEMONSTRATION REPORT")
@@ -137,7 +147,8 @@ def stop_node(node: subprocess.Popen) -> None:
 
 def run(offline_seconds: int, tail: int, drain_timeout: int) -> bool:
     if api_is_up():
-        print("A node is already answering on 127.0.0.1:8000. Stop it first (Ctrl+C) and retry.")
+        print(f"A node is already answering on 127.0.0.1:{API_PORT}. Stop it first (Ctrl+C) "
+              "and retry, or move this run with EDGE_API_PORT / EDGE_RECEIVER_PORT.")
         return False
 
     report = Report()
@@ -312,7 +323,16 @@ def _scenario(node, node_db, receiver_db, log_path, report,
                  f"(pending ones are the live tail and will be sent on the next run)")
 
     report.print()
+    _save_report(report)
     return report.ok
+
+
+def _save_report(report: Report) -> None:
+    """Keep a JSON copy of the report in data/runs/ (evidence for the defense)."""
+    folder = PROJECT_ROOT / "data" / "runs" / time.strftime("os3_5-%Y%m%d-%H%M%S")
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "report.json").write_text(json.dumps(report.to_dict(), indent=2), encoding="utf-8")
+    print(f"Report saved: {folder / 'report.json'}")
 
 
 def main() -> int:

@@ -9,6 +9,8 @@ from typing import Any
 
 import psutil
 
+from edge.config import API_HOST, API_PORT
+
 
 DASHBOARD_PATH = Path(__file__).resolve().parents[1] / "ui" / "static" / "index.html"
 
@@ -112,8 +114,8 @@ def run_api_server(state: Any, stop_event: Any, channels: Any) -> None:
         def log_message(self, _format: str, *_args: object) -> None:
             return
 
-    # Listen on the loopback interface only: the console is local, not public.
-    server = HTTPServer(("127.0.0.1", 8000), Handler)
+    # Loopback only by default: the console is local, not public (EDGE_API_HOST / EDGE_API_PORT).
+    server = HTTPServer((API_HOST, API_PORT), Handler)
     server.timeout = 0.5
     try:
         while not stop_event.is_set():

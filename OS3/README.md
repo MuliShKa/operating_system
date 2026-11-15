@@ -54,6 +54,12 @@ bash scripts/start_demo.sh      # preflight + setup on first run + supervisor
 Open `http://127.0.0.1:8000`. Use **Simulate WAN Internet Cut** and
 **Restore WAN Connection** to see the outbox accumulate and drain. Stop with `Ctrl+C`.
 
+Ports and databases are configurable (useful when 8000 is busy or two nodes
+share a machine): `EDGE_API_PORT` (8000), `EDGE_API_HOST` (127.0.0.1),
+`EDGE_RECEIVER_PORT` (8001), `EDGE_DATABASE_PATH`. The mock upstream receiver
+keeps its own database next to the node one (`<node db>_upstream.db`) unless
+`EDGE_RECEIVER_DATABASE_PATH` is set, so a test node never touches real data.
+
 Manual launch:
 
 ```bash
@@ -79,6 +85,19 @@ PYTHONPATH=src python3 tests/test_demo_integration.py -v
 | OS3-4 Transactional sign state | Implemented and tested |
 | OS3-5 Offline sign dispatch and replay | Implemented: `scenarios/os3_5_offline_demo.py` |
 
+## Scenario scripts
+
+```bash
+python3 scenarios/run_os3_scenarios.py --quick          # all five, OS3-5 offline 60 s (~2 min)
+python3 scenarios/run_os3_scenarios.py                  # official, OS3-5 offline 600 s
+python3 scenarios/run_os3_scenarios.py --only os3_3 os3_4
+```
+
+Each script prints PASS/FAIL per check, exits 0 only if all pass, and saves
+`data/runs/<scenario>-<time>/report.json` (copy the official ones into your
+report). OS3-1 and OS3-5 start their own node with throwaway databases, so stop
+any running node first.
+
 ## Offline demonstration (OS3-5)
 
 ```bash
@@ -97,5 +116,5 @@ to keep the report as evidence. Stop any running node first (port 8000).
 ## Not implemented yet
 
 - Automatic restart of a crashed worker (the supervisor stops everything instead).
-- `scenarios/run_all_scenarios.py`, systemd unit, Dockerfile and compose file.
+- systemd unit, Dockerfile and compose file.
 - Backup script with `flock`.

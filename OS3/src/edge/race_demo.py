@@ -1,4 +1,5 @@
 import multiprocessing as mp
+import random
 from multiprocessing.synchronize import Barrier
 
 from edge.shared_counter import SharedCounter
@@ -43,7 +44,9 @@ class RaceDemo:
         if use_lock:
             counter.increment()
         else:
-            counter.unsafe_increment(pause_s=0.005)
+            # A random 0-5 ms pause widens the read-write gap WITHOUT making every
+            # run identical: a fixed pause gave exactly 1/80 every time ("too perfect").
+            counter.unsafe_increment(pause_s=random.uniform(0, 0.005))
 
 
 if __name__ == "__main__":

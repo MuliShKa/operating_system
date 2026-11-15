@@ -4,8 +4,16 @@ The node must still start if PyYAML is missing or the file is unreadable,
 because the whole point of the project is to keep operating under failures.
 """
 
+import os
 from pathlib import Path
 from typing import Any
+
+# Local ports. The environment can move them when the defaults are taken by
+# another program on the machine (OS1 hit exactly this on port 8001).
+# The API listens on the loopback interface only; a container sets 0.0.0.0.
+API_HOST = os.environ.get("EDGE_API_HOST", "127.0.0.1")
+API_PORT = int(os.environ.get("EDGE_API_PORT", "8000"))
+RECEIVER_PORT = int(os.environ.get("EDGE_RECEIVER_PORT", "8001"))
 
 PROJECT_DIR = Path(__file__).resolve().parents[2]
 CONFIG_PATH = PROJECT_DIR / "config" / "node.yaml"
