@@ -1,0 +1,77 @@
+{
+  "scenario": "OS3-1",
+  "seconds": 45,
+  "bus_context": {
+    "source": "incheon_bis_stops.csv",
+    "is_sample": false,
+    "total_stops": 7085,
+    "skipped_rows": 152,
+    "swapped_rows": 7085,
+    "radius_m": 200.0,
+    "routes_source": "incheon_bis_routes.csv",
+    "stops_with_routes": 2,
+    "nearby_count": 2,
+    "nearby": [
+      {
+        "stop_id": "164000421",
+        "name": "\ud14c\ud06c\ub178\ud30c\ud06c\uc5ed",
+        "distance_m": 57.2,
+        "routes": [
+          "303-1",
+          "\uae09\ud58991",
+          "320",
+          "81",
+          "4",
+          "4401",
+          "\uae09\ud58999",
+          "9",
+          "01\uc6d4 16\uc77c",
+          "M6450",
+          "6777-1",
+          "\uc21c\ud65843",
+          "\uc5f0\uc21802",
+          "\uc5f0\uc21803"
+        ]
+      },
+      {
+        "stop_id": "164000422",
+        "name": "\ud14c\ud06c\ub178\ud30c\ud06c\uc5ed",
+        "distance_m": 57.7,
+        "routes": [
+          "303-1",
+          "\uae09\ud58991",
+          "320",
+          "81",
+          "4",
+          "4401",
+          "\uae09\ud58999",
+          "9",
+          "01\uc6d4 16\uc77c",
+          "M6450",
+          "6777-1",
+          "\uc21c\ud65843",
+          "\uc5f0\uc21802",
+          "\uc5f0\uc21803"
+        ]
+      }
+    ]
+  },
+  "is_sample_data": false,
+  "stored_events": {
+    "PED_CROSSWALK_COUNT": 46,
+    "RADAR_SPEED": 46
+  },
+  "surge_reasons": [
+    "Pedestrian surge: 24 >= 15; nearest bus stop: \ud14c\ud06c\ub178\ud30c\ud06c\uc5ed (57 m, routes 303-1/\uae09\ud58991/320/81)"
+  ],
+  "checks": {
+    "bus stops were loaded from a local cached file": true,
+    "at least one stop is near the intersection": true,
+    "unusable rows of the file are counted, not hidden": true,
+    "vehicle speed telemetry (RADAR_SPEED) is stored": true,
+    "pedestrian counts (PED_CROSSWALK_COUNT) are stored": true,
+    "bus context still served while the WAN is cut": true,
+    "readings kept arriving while the WAN was cut": true,
+    "a pedestrian surge decision names the nearest bus stop (correlation)": true
+  }
+}

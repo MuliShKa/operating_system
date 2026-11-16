@@ -1,0 +1,33 @@
+{
+  "scenario": "OS3-1",
+  "seconds": 45,
+  "bus_context": {
+    "source": "incheon_bis_stops.csv",
+    "is_sample": false,
+    "total_stops": 0,
+    "skipped_rows": 7237,
+    "radius_m": 200.0,
+    "routes_source": "incheon_bis_routes.csv",
+    "stops_with_routes": 0,
+    "nearby_count": 0,
+    "nearby": []
+  },
+  "is_sample_data": false,
+  "stored_events": {
+    "PED_CROSSWALK_COUNT": 46,
+    "RADAR_SPEED": 46
+  },
+  "surge_reasons": [
+    "Pedestrian surge: 15 >= 15"
+  ],
+  "checks": {
+    "bus stops were loaded from a local cached file": false,
+    "at least one stop is near the intersection": false,
+    "unusable rows of the file are counted, not hidden": true,
+    "vehicle speed telemetry (RADAR_SPEED) is stored": true,
+    "pedestrian counts (PED_CROSSWALK_COUNT) are stored": true,
+    "bus context still served while the WAN is cut": false,
+    "readings kept arriving while the WAN was cut": true,
+    "a pedestrian surge decision names the nearest bus stop (correlation)": false
+  }
+}
