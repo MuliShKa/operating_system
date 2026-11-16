@@ -69,6 +69,7 @@ PYTHONPATH=src python3 -m edge.supervisor
 ## Tests
 
 ```bash
+python3 -m unittest discover -s tests             # All test (52)
 python3 tests/test_os_fundamentals.py -v          # queues, IPC, race, deadlock
 python3 tests/test_backup.py -v                   # online backup, retention, flock
 python3 tests/test_surge_rule.py -v               # rule, TTL from reading time, version-guarded sign
