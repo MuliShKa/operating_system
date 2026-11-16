@@ -32,7 +32,7 @@ domain socket demo.
 
 | Scenario | Mechanism | Where | Evidence |
 |---|---|---|---|
-| OS3-1 bus context | Cached BIS CSV loaded from disk, haversine distance, nearest stop named in the decision reason | `bis_loader.py`, `processor.py` | `scenarios/os3_1_bus_context.py` |
+| OS3-1 bus context | Cached BIS CSVs (stops 15074309 + routes 15048265) loaded from disk, haversine distance, nearest stop and its routes named in the decision reason | `bis_loader.py`, `processor.py` | `scenarios/os3_1_bus_context.py` |
 | OS3-2 priority | `PriorityQueue`: urgent lane drained before normal lane | `priority_queue.py` | `scenarios/os3_2_priority.py` |
 | OS3-3 overload | `BoundedQueue`: capacity 500, drop-oldest, counters | `bounded_queue.py` | `scenarios/os3_3_overload.py` |
 | OS3-4 transactional | `UPDATE sign_state ... WHERE version = ?` in a WAL transaction | `storage.py`, `actuator.py` | `scenarios/os3_4_transactional.py` |
@@ -91,8 +91,10 @@ domain socket demo.
 
 ## 6. Known limits
 
-- Radar and pedestrian data are simulated; the bus stop file is a synthetic
-  sample until the real cached Incheon BIS file is supplied.
+- Radar and pedestrian data are simulated. The bus stops are real cached Incheon open
+  data (dataset 15074309 for locations, 15048265 for routes per stop); a synthetic
+  sample is used only if those files are missing. The data is a semiannual snapshot, so
+  new or moved stops are not reflected until the files are refreshed.
 - No restart of a single worker inside the supervisor: the whole node restarts.
 - Unix socket demo and the shell scripts need Linux.
 - The upstream receiver is a mock; there is no authentication or TLS.
