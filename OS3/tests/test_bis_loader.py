@@ -94,5 +94,64 @@ class TestBuildContext(unittest.TestCase):
         self.assertEqual(context.to_dict()["nearby_count"], 0)
 
 
+
+
+class TestRealFormat(unittest.TestCase):
+    """Files laid out like the real data.go.kr downloads (headers copied from the
+    dataset pages; the rows themselves are made-up test data)."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self.tmp.name)
+        self.stops = self.dir / "stops.csv"
+        self.stops.write_text(
+            "기준 일자,정류소 명,정류소 번호,정류소 ID,권역,행정동 명,X 좌표,위도,Y 좌표,경도\n"
+            "2026-02-28,테스트정류장A,11001,222000001,송도,송도동,0,37.3823,0,126.6563\n"
+            "2026-02-28,테스트정류장B,11002,222000002,송도,송도동,0,0,0,0\n"
+            "2026-02-28,테스트정류장C,11003,222000003,송도,송도동,0,37.5000,0,126.9000\n",
+            encoding="utf-8",
+        )
+        self.routes = self.dir / "routes.csv"
+        self.routes.write_text(
+            "기준일자,회사명,회사아이디,노선번호,노선아이디,순번,정류소명,정류소번호,정류소아이디,"
+            "아이에스씨아이디,정류소구간거리,정류소간누적거리,주요경유지여부,상_하행\n"
+            "2026-06-30,x,1,9,100,1,테스트정류장A,11001,222000001,0,,,N,1\n"
+            "2026-06-30,x,1,16,101,4,테스트정류장A,11001,222000001,0,120,300,N,1\n"
+            "2026-06-30,x,1,9,100,2,테스트정류장A,11001,222000001,0,120,300,N,2\n",
+            encoding="utf-8",
+        )
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def test_headers_with_spaces_are_understood(self) -> None:
+        stops, _ = bis_loader.load_bus_stops(self.stops)
+        self.assertEqual(stops[0].name, "테스트정류장A")
+        self.assertEqual(stops[0].stop_id, "222000001")
+
+    def test_rows_without_location_are_skipped_and_counted(self) -> None:
+        stops, skipped = bis_loader.load_bus_stops(self.stops)
+        self.assertEqual(len(stops), 2)
+        self.assertEqual(skipped, 1)
+
+    def test_route_index_collects_routes_once(self) -> None:
+        index = bis_loader.load_route_index(self.routes)
+        self.assertEqual(index["222000001"], ("9", "16"))
+
+    def test_routes_are_merged_into_nearby_stops(self) -> None:
+        context = bis_loader.build_context(NODE_LAT, NODE_LON, 200, self.stops, routes_csv=self.routes)
+        self.assertEqual(context.nearby_count if hasattr(context, "nearby_count") else len(context.nearby), 1)
+        self.assertEqual(context.nearby[0][0].routes, ("9", "16"))
+        self.assertEqual(context.stops_with_routes, 1)
+        self.assertIn("routes 9/16", context.describe())
+        self.assertEqual(context.skipped_rows, 1)
+
+    def test_missing_routes_file_keeps_the_stops(self) -> None:
+        context = bis_loader.build_context(NODE_LAT, NODE_LON, 200, self.stops,
+                                           routes_csv=self.dir / "nope.csv")
+        self.assertEqual(len(context.nearby), 1)
+        self.assertEqual(context.routes_source, "none")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -81,7 +81,7 @@ PYTHONPATH=src python3 tests/test_demo_integration.py -v
 
 | Scenario | Status |
 |---|---|
-| OS3-1 Bus stop context | Implemented and tested. Uses a **synthetic sample CSV** until the real cached BIS file is placed in `sources/incheon_bis_stops.csv` (column names of the real file not verified) |
+| OS3-1 Bus stop context | Implemented and tested. Uses a **synthetic sample CSV** until the real cached files are placed in `sources/` (see "Real bus stop data") |
 | OS3-2 Priority queue | Implemented and tested |
 | OS3-3 Overload / drop-oldest | Implemented and tested |
 | OS3-4 Transactional sign state | Implemented and tested |
@@ -114,6 +114,21 @@ backlog to drain, replays one event to prove the receiver deduplicates, and
 verifies conservation: no event lost, nothing marked `sent` that the receiver
 does not have. Exit code 0 means every check passed. Use `| tee report.txt`
 to keep the report as evidence. Stop any running node first (port 8000).
+
+## Real bus stop data (OS3-1)
+
+The handbook names dataset 15048265, but that file lists which routes stop where and
+has **no coordinates**. Coordinates are in dataset 15074309. The node uses both:
+
+1. Download "인천광역시_시내버스 정류소 현황" (15074309) from data.go.kr, save it as
+   `sources/incheon_bis_stops.csv`.
+2. Download "인천광역시_버스노선별 정류장 현황" (15048265), save it as
+   `sources/incheon_bis_routes.csv`.
+3. Restart the node. The dashboard no longer shows "SAMPLE DATA", and surge decisions
+   name the nearest stop with its routes.
+
+Rows without a location (the data writes 0) are skipped and counted. If the files are
+missing, the node falls back to the labelled synthetic sample.
 
 ## Supervision, backup and containers (W5)
 

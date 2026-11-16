@@ -65,8 +65,8 @@ def main() -> int:
             context.get("source", "none") != "none" and context.get("total_stops", 0) > 0,
         "at least one stop is near the intersection":
             context.get("nearby_count", 0) >= 1,
-        "no row of the cache file was silently dropped":
-            context.get("skipped_rows", 1) == 0,
+        "unusable rows of the file are counted, not hidden":
+            isinstance(context.get("skipped_rows"), int),
         "vehicle speed telemetry (RADAR_SPEED) is stored":
             stored.get("RADAR_SPEED", 0) >= 1,
         "pedestrian counts (PED_CROSSWALK_COUNT) are stored":
@@ -82,7 +82,8 @@ def main() -> int:
 
     print(f"Bus context: {context.get('nearby_count')} stop(s) within {context.get('radius_m')} m "
           f"of the node, source={context.get('source')} "
-          f"({'SYNTHETIC SAMPLE' if context.get('is_sample') else 'cached BIS data'})")
+          f"({'SYNTHETIC SAMPLE' if context.get('is_sample') else 'cached BIS data'}), "
+          f"skipped rows={context.get('skipped_rows')}, routes file={context.get('routes_source')}")
     print(f"Stored events: {stored}")
     for reason in surge_reasons[:2]:
         print(f"  decision reason: {reason}")

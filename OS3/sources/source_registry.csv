@@ -1,2 +1,4 @@
 source_id,provider,dataset,dataset_id,used_by,status,notes
-INCHEON_BIS_BUS_STOPS,Incheon Metropolitan City BIS,Bus stop sequences,15048265,OS3-1,not cached yet,Dataset ID comes from the course handbook. Download and cache it locally before the offline demo.
+INCHEON_BIS_STOPS_LOCATION,Incheon Metropolitan City (data.go.kr),시내버스 정류소 현황 (bus stops with latitude/longitude),15074309,OS3-1,not cached yet,Download the CSV from https://www.data.go.kr/data/15074309/fileData.do and save it as sources/incheon_bis_stops.csv. Rows with location 0 are skipped and counted. License: no restrictions (이용허락범위 제한 없음).
+INCHEON_BIS_ROUTE_STOPS,Incheon Metropolitan City (data.go.kr),버스노선별 정류장 현황 (stops by route; NO coordinates),15048265,OS3-1,not cached yet,Dataset named in the course handbook. Download from https://www.data.go.kr/data/15048265/fileData.do and save it as sources/incheon_bis_routes.csv. Used only to add route numbers to the stops above.
+SYNTHETIC_SAMPLE,Team OS3,3 invented bus stops near the node,none,OS3-1,in use until the real files exist,sources/bis_stops_SAMPLE_synthetic.csv. Labelled SAMPLE on the dashboard.

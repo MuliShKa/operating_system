@@ -28,6 +28,7 @@ DEFAULTS: dict[str, Any] = {
     "latitude": 37.3820,
     "longitude": 126.6560,
     "bis_stops_csv": "sources/incheon_bis_stops.csv",
+    "bis_routes_csv": "sources/incheon_bis_routes.csv",
     "bis_sample_csv": "sources/bis_stops_SAMPLE_synthetic.csv",
     "bis_radius_m": 200,
 }

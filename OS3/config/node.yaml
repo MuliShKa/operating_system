@@ -25,7 +25,10 @@ command_ttl_seconds: 15.0        # a sign command is stale after this time (mono
 # --- Scenario OS3-1: cached Incheon BIS bus stop context ---
 # Put the real cached file at bis_stops_csv. While it is missing, the node falls
 # back to the SYNTHETIC sample (flagged "SAMPLE DATA" on the dashboard).
+# Real data (data.go.kr): stops with coordinates = dataset 15074309,
+# routes per stop = dataset 15048265 (the one named in the handbook, no coordinates).
 bis_stops_csv: sources/incheon_bis_stops.csv
+bis_routes_csv: sources/incheon_bis_routes.csv
 bis_sample_csv: sources/bis_stops_SAMPLE_synthetic.csv
 bis_radius_m: 200                # bus stops within this distance count as "nearby" (team decision)
 

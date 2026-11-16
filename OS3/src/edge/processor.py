@@ -28,6 +28,7 @@ def _load_bus_context() -> bis_loader.BusContext:
         radius_m=float(config["bis_radius_m"]),
         primary_csv=PROJECT_DIR / str(config["bis_stops_csv"]),
         fallback_csv=PROJECT_DIR / str(config["bis_sample_csv"]),
+        routes_csv=PROJECT_DIR / str(config["bis_routes_csv"]),
     )
 
 
