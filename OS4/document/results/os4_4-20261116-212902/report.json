@@ -1,0 +1,23 @@
+{
+  "scenario": "OS4-4",
+  "events_before": 19,
+  "backup_events": 20,
+  "events_after": 29,
+  "checks": {
+    "exactly one of two simultaneous backups ran": true,
+    "the refused backup exited cleanly (exit 0, no pile-up)": true,
+    "the winning backup finished OK": true,
+    "backup passes PRAGMA integrity_check": true,
+    "backup holds the data written before it started": true,
+    "no half-written .partial file left behind": true,
+    "the node kept writing during and after the backup": true,
+    "no 'database is locked' error in the node log": true,
+    "database is in WAL mode": true,
+    "a SIGKILLed lock holder leaves no stale lock (kernel released it)": true,
+    "retention keeps only the newest 3 backups": true,
+    "script takes the lock with flock -n": true,
+    "timer is periodic and persistent": true,
+    "service runs scripts/backup.sh as a oneshot": true,
+    "node workers all still running": true
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "scenario": "OS4-2",
+  "arrival_order_values": [
+    20.0,
+    22.0,
+    95.0,
+    21.0
+  ],
+  "event_order_values": [
+    20.0,
+    95.0,
+    21.0,
+    22.0
+  ],
+  "command_expires_in_s": 26.0,
+  "relay_off_after_s": 27.413213100000007,
+  "sim_readings": 43,
+  "sim_inversions": 13,
+  "checks": {
+    "arrival order differs from event-time order (really out of order)": true,
+    "event-time order is the order the sensor measured": true,
+    "observed_at stored exactly as the sensor sent it": true,
+    "received_at kept separately and never earlier than observed_at": true,
+    "late readings counted as out of order (2 of 4)": true,
+    "an old high reading that arrives late does NOT start the mist cannon": true,
+    "a fresh high reading (newest by event time) DOES start it": true,
+    "its TTL is counted from event time (about 26 s left, not 30)": true,
+    "low readings do not switch the relay off; only the TTL does": true,
+    "simulator: readings really arrived out of order": true,
+    "simulator: lateness was measured": true,
+    "simulator: no reading has observed_at after received_at": true
+  }
+}

@@ -1,0 +1,55 @@
+import multiprocessing as mp
+import random
+from multiprocessing.synchronize import Barrier
+
+from edge.shared_counter import SharedCounter
+
+
+class RaceDemo:
+    """
+    Race condition demo: 80 processes add 1 to the same counter at the same time.
+
+    Without a lock the final value is far below 80 (lost updates);
+    with the mutex it is exactly 80.
+
+    Run: PYTHONPATH=src python -m edge.race_demo
+    """
+
+    def __init__(self, workers: int = 80) -> None:
+        # Number of processes that add 1 to the counter.
+        self.workers = workers
+
+    def run(self, use_lock: bool) -> int:
+        """Start the processes and return the final counter value (expected: `workers`)."""
+        counter = SharedCounter()
+
+        # The barrier holds every process until all are ready,
+        # then releases them together, so they really collide.
+        start_line = mp.Barrier(self.workers)
+
+        processes = [
+            mp.Process(target=self.add_one, args=(counter, start_line, use_lock))
+            for _ in range(self.workers)
+        ]
+
+        for process in processes:
+            process.start()
+        for process in processes:
+            process.join()
+        return counter.get_value()
+
+    def add_one(self, counter: SharedCounter, start_line: Barrier, use_lock: bool) -> None:
+        """Wait for every other process, then add 1 (with or without the lock)."""
+        start_line.wait()
+        if use_lock:
+            counter.increment()
+        else:
+            # A random 0-5 ms pause widens the read-write gap WITHOUT making every
+            # run identical: a fixed pause gave exactly 1/80 every time ("too perfect").
+            counter.unsafe_increment(pause_s=random.uniform(0, 0.005))
+
+
+if __name__ == "__main__":
+    demo = RaceDemo()
+    print(f"{demo.workers} processes, without lock: counter = {demo.run(use_lock=False)}")
+    print(f"{demo.workers} processes, with lock:    counter = {demo.run(use_lock=True)}")

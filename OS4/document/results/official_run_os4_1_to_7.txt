@@ -1,0 +1,224 @@
+
+===== os4_1 =====
+Observing 30 s ...
+  events: {'PM25': 15, 'NOISE': 31, 'LUX': 6}  rates/s: {'PM25': 0.5, 'NOISE': 1.03, 'LUX': 0.2}
+  Ingest pid 1843: CPU 0.03 s in 30 s, sockets owned: 3
+  [PASS] all three sensors delivered readings
+  [PASS] three different wire formats parsed without a single parse error
+  [PASS] PM25 rate matches its period (2.0 s)
+  [PASS] NOISE rate matches its period (1.0 s)
+  [PASS] LUX rate matches its period (5.0 s)
+  [PASS] rates differ across sensors (asynchronous streams)
+  [PASS] the three Unix sockets exist as socket files
+  [PASS] ONE process (Ingest) owns all three sockets
+  [PASS] Ingest waits in epoll (eventpoll fd present)
+  [PASS] Ingest is not busy-polling (< 5 % CPU)
+  [PASS] a malformed datagram was counted, not fatal
+  [PASS] other sensors kept flowing meanwhile
+  [PASS] every Ingest worker still running
+  [PASS] every stored reading has observed_at and received_at
+RESULT: ALL CHECKS PASSED
+Report: /home/claude/repo_extract/operating_system/OS4/data/runs/os4_1-20261116-212641/report.json
+
+===== os4_2 =====
+  arrival order values : [20.0, 22.0, 95.0, 21.0]
+  event-time order     : [20.0, 95.0, 21.0, 22.0]
+  relay ON; command had 26.0 s left; relay went OFF after 27.4 s
+  simulator phase: 43 PM2.5+noise readings, 13 arrival inversions
+  [PASS] arrival order differs from event-time order (really out of order)
+  [PASS] event-time order is the order the sensor measured
+  [PASS] observed_at stored exactly as the sensor sent it
+  [PASS] received_at kept separately and never earlier than observed_at
+  [PASS] late readings counted as out of order (2 of 4)
+  [PASS] an old high reading that arrives late does NOT start the mist cannon
+  [PASS] a fresh high reading (newest by event time) DOES start it
+  [PASS] its TTL is counted from event time (about 26 s left, not 30)
+  [PASS] low readings do not switch the relay off; only the TTL does
+  [PASS] simulator: readings really arrived out of order
+  [PASS] simulator: lateness was measured
+  [PASS] simulator: no reading has observed_at after received_at
+RESULT: ALL CHECKS PASSED
+Report: /home/claude/repo_extract/operating_system/OS4/data/runs/os4_2-20261116-212747/report.json
+
+===== os4_3 =====
+Warm-up: normal air for 12 s ...
+>>> dust episode starts
+>>> dust episode ends (readings drop below 50)
+  decisions: {'MIST_CANNON_RELAY': 1, 'MIST_RELAY_OFF': 1, 'MIST_RELAY_ON': 1}
+  relay OFF 30.3 s after the last reading above 50
+  [PASS] normal air: relay stays OFF and no dispatch
+  [PASS] PM2.5 above 50: relay switched ON within 15 s
+  [PASS] relay stays ON while high readings keep renewing the command
+  [PASS] dispatch decision MIST_CANNON_RELAY recorded once for the episode
+  [PASS] relay ON recorded by the Actuator (MIST_RELAY_ON)
+  [PASS] relay switched OFF by itself after the episode
+  [PASS] OFF came 30 s (TTL) after the last high reading (28-34 s)
+  [PASS] relay OFF recorded (MIST_RELAY_OFF)
+  [PASS] actuation events (ON then OFF) are queued for the platform
+  [PASS] every worker still running
+RESULT: ALL CHECKS PASSED
+Report: /home/claude/repo_extract/operating_system/OS4/data/runs/os4_3-20261116-212842/report.json
+
+===== os4_4 =====
+  first : Backup OK: /tmp/tmp3qlwsm5t/backups/node-20261116-212854-250178.db (65536 bytes, 4.00 s)
+  second: Backup skipped: another backup holds /tmp/tmp3qlwsm5t/backups/.backup.lock
+  [PASS] exactly one of two simultaneous backups ran
+  [PASS] the refused backup exited cleanly (exit 0, no pile-up)
+  [PASS] the winning backup finished OK
+  [PASS] backup passes PRAGMA integrity_check
+  [PASS] backup holds the data written before it started
+  [PASS] no half-written .partial file left behind
+  [PASS] the node kept writing during and after the backup
+  [PASS] no 'database is locked' error in the node log
+  [PASS] database is in WAL mode
+  [PASS] a SIGKILLed lock holder leaves no stale lock (kernel released it)
+  [PASS] retention keeps only the newest 3 backups
+  [PASS] script takes the lock with flock -n
+  [PASS] timer is periodic and persistent
+  [PASS] service runs scripts/backup.sh as a oneshot
+  [PASS] node workers all still running
+RESULT: ALL CHECKS PASSED
+Report: /home/claude/repo_extract/operating_system/OS4/data/runs/os4_4-20261116-212902/report.json
+
+===== os4_5 =====
+
+>>> WAN CUT for 600 s
+  t=    0s events=    8 pending=    5 receiver=    3
+  t=   15s events=   34 pending=   31 receiver=    3
+  t=   30s events=   57 pending=   54 receiver=    3
+  t=   45s events=   86 pending=   83 receiver=    3
+  t=   60s events=  112 pending=  109 receiver=    3
+  t=   76s events=  136 pending=  133 receiver=    3
+  t=   91s events=  164 pending=  161 receiver=    3
+  t=  106s events=  189 pending=  186 receiver=    3
+  t=  121s events=  216 pending=  213 receiver=    3
+  t=  135s events=  242 pending=  239 receiver=    3
+  t=  150s events=  266 pending=  263 receiver=    3
+  t=  165s events=  293 pending=  290 receiver=    3
+  t=  180s events=  321 pending=  318 receiver=    3
+  t=  195s events=  346 pending=  343 receiver=    3
+  t=  211s events=  373 pending=  370 receiver=    3
+  t=  226s events=  401 pending=  398 receiver=    3
+  t=  241s events=  427 pending=  424 receiver=    3
+  t=  256s events=  453 pending=  450 receiver=    3
+  t=  270s events=  478 pending=  475 receiver=    3
+  t=  285s events=  504 pending=  501 receiver=    3
+  t=  300s events=  527 pending=  524 receiver=    3
+  t=  315s events=  557 pending=  554 receiver=    3
+  t=  331s events=  582 pending=  579 receiver=    3
+  t=  346s events=  608 pending=  605 receiver=    3
+  t=  361s events=  636 pending=  633 receiver=    3
+  t=  376s events=  661 pending=  658 receiver=    3
+  t=  391s events=  687 pending=  684 receiver=    3
+  t=  405s events=  713 pending=  710 receiver=    3
+  t=  420s events=  737 pending=  734 receiver=    3
+  t=  435s events=  765 pending=  762 receiver=    3
+  t=  450s events=  792 pending=  789 receiver=    3
+  t=  466s events=  817 pending=  814 receiver=    3
+  t=  481s events=  843 pending=  840 receiver=    3
+  t=  496s events=  871 pending=  868 receiver=    3
+  t=  511s events=  897 pending=  894 receiver=    3
+  t=  525s events=  920 pending=  917 receiver=    3
+  t=  540s events=  949 pending=  946 receiver=    3
+  t=  555s events=  974 pending=  971 receiver=    3
+  t=  570s events=  999 pending=  996 receiver=    3
+  t=  585s events= 1025 pending= 1022 receiver=    3
+
+>>> WAN RESTORED: draining the backlog
+
+Benchmark vs station 131233 (airkorea_131233_SAMPLE_synthetic.csv, SAMPLE DATA): 30 checks, 30 AGREE; last local 24.55 vs station 22.0 (bias +2.55, NORMAL/NORMAL)
+
+==============================================================================
+OS4-5 OFFLINE DEMONSTRATION REPORT
+==============================================================================
+[PASS] online delivery works before the cut
+        receiver holds 3 events
+[PASS] the WAN stayed cut for the whole window
+        nobody pressed Restore during the run
+[PASS] every worker kept running during the outage
+        8/8 running at every sample
+[PASS] local sensing and storage continued
+        1045 events stored offline (about 1020 expected)
+[PASS] nothing was delivered while offline
+        receiver 3 -> 3
+[PASS] outbox accumulated every offline event
+        pending 5 -> 1050 for 1045 new events
+[PASS] local decisions continued (mist rule)
+        38 decisions recorded while offline
+[PASS] AirKorea benchmark kept running offline from the local cache
+        29 baseline checks while offline
+[PASS] backlog drained after reconnect
+        pending 1050 -> 0 in 8 s (a few live events may still be arriving)
+[PASS] receiver ignores a replayed event (idempotent)
+        replay answered duplicate=True, receiver count 1066 -> 1066
+[PASS] outbox is empty once the sensors are paused
+        1068 events, 0 still pending
+[PASS] no event lost locally (every event has an outbox row)
+        1068 events, 1068 outbox rows
+[PASS] 100 % delivery acknowledgement: every event is at the receiver
+        1068 of 1068 events acknowledged (100.0 %)
+[PASS] nothing at the receiver that the node did not produce
+        0 unknown IDs
+[PASS] benchmark compared local PM2.5 with station 131233
+        30 comparisons stored; source=airkorea_131233_SAMPLE_synthetic.csv; SAMPLE DATA: synthetic, not the real station
+[PASS] most benchmark checks agree within tolerance
+        30/30 AGREE
+==============================================================================
+RESULT: ALL CHECKS PASSED
+Report: /home/claude/repo_extract/operating_system/OS4/data/runs/os4_5-20261116-213925/report.json
+
+===== os4_6 =====
+>>> dust episode, relay ON, then the PM2.5 sensor HANGS
+>>> the sensor comes back (episode still on)
+>>> the PM2.5 sensor FREEZES on a high value
+  decisions: {'MIST_CANNON_RELAY': 2, 'MIST_RELAY_OFF': 2, 'MIST_RELAY_ON': 2, 'SENSOR_RECOVERED': 2, 'SENSOR_STALE': 1, 'SENSOR_STUCK': 1}; relay OFF 30.2 s after the last accepted high reading
+  [PASS] NaN, negative and out-of-range values are rejected (3)
+  [PASS] garbage and wrong-device messages are counted as malformed
+  [PASS] no implausible value was ever stored
+  [PASS] bad datagrams did not move the relay
+  [PASS] relay was ON during the episode
+  [PASS] hung sensor: channel reported STALE within 25 s
+  [PASS] hung sensor: relay fell OFF by itself 28-34 s after the last accepted reading
+  [PASS] hung sensor: relay stays OFF while the channel is silent
+  [PASS] hung sensor: the other channels kept working
+  [PASS] hung sensor: SENSOR_STALE decision recorded
+  [PASS] sensor back: channel OK again
+  [PASS] sensor back: spraying resumes only after it is trusted again
+  [PASS] frozen sensor: channel reported STUCK
+  [PASS] frozen sensor: relay switched OFF although every reading is above 50
+  [PASS] frozen sensor: readings kept arriving (device was talking)
+  [PASS] SENSOR_STUCK and SENSOR_RECOVERED decisions recorded
+  [PASS] channel OK again after the fault is cleared
+  [PASS] no worker crashed during any fault
+RESULT: ALL CHECKS PASSED
+Report: /home/claude/repo_extract/operating_system/OS4/data/runs/os4_6-20261116-214102/report.json
+
+===== os4_7 =====
+>>> night falls: dark and quiet street
+>>> Bad dust (58-72) at night
+>>> Very Bad dust (80-100) at night: emergency override
+>>> morning: bright and noisy street, Bad dust again
+  [PASS] illumination and noise sensors report a dark, quiet street
+  [PASS] night + Bad: the hold is reported (MIST_HELD_QUIET_HOURS)
+  [PASS] night + Bad: the pump stays OFF for 15+ s
+  [PASS] the hold is reported once per episode, not at every reading
+  [PASS] no dispatch decision while held
+  [PASS] night + Very Bad: the pump starts (override)
+  [PASS] the override is named in the decision reason
+  [PASS] the relay goes OFF after the dust ends
+  [PASS] day returns: sensors report a bright, noisy street
+  [PASS] day + Bad: the pump starts as usual
+  [PASS] the daytime decision does not mention an override
+  [PASS] every worker still running
+RESULT: ALL CHECKS PASSED
+Report: /home/claude/repo_extract/operating_system/OS4/data/runs/os4_7-20261116-214204/report.json
+
+===== SUMMARY =====
+  [PASS] os4_1  (35 s)
+  [PASS] os4_2  (66 s)
+  [PASS] os4_3  (55 s)
+  [PASS] os4_4  (20 s)
+  [PASS] os4_5  (623 s)
+  [PASS] os4_6  (98 s)
+  [PASS] os4_7  (62 s)
+OVERALL: ALL SCENARIOS PASSED

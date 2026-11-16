@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Songdo Edge Intelligence - OS4</title>
+<style>
+    :root { font-family: system-ui, sans-serif; color: #172033; background: #f3f6fb; }
+    * { box-sizing: border-box; }
+    body { max-width: 1150px; margin: 32px auto; padding: 0 18px; }
+    h1 { margin-bottom: 4px; }
+    .subtitle { color: #64748b; margin-top: 0; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; margin: 22px 0; }
+    .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px #0000000d; margin-bottom: 18px; overflow-x: auto; }
+    .label { color: #64748b; font-size: 14px; }
+    .value { font-size: 28px; font-weight: 700; margin: 8px 0; }
+    .detail { font-size: 13px; color: #64748b; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { text-align: left; padding: 9px 9px; border-bottom: 1px solid #e5eaf1; white-space: nowrap; }
+    th { background: #f5f7fb; font-size: 13px; }
+    .badge { display: inline-block; padding: 4px 9px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+    .running, .normal, .ok { background: #dcfce7; color: #166534; }
+    .stopped, .error, .alert { background: #fee2e2; color: #991b1b; }
+    .unknown, .warning { background: #fef3c7; color: #92400e; }
+    .empty { color: #64748b; padding: 16px 0; }
+    .section-title { margin-top: 0; }
+    #connection { font-size: 13px; color: #64748b; }
+    button { padding: 9px 13px; margin: 4px 8px 4px 0; border: 0; border-radius: 8px; cursor: pointer; font-weight: 600; background: #e2e8f0; color: #172033; }
+    button.on { background: #1e3a8a; color: white; }
+    #wan-offline { background: #fee2e2; color: #991b1b; }
+    #wan-online { background: #dcfce7; color: #166534; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .late { color: #b45309; font-weight: 600; }
+</style>
+</head>
+<body>
+<h1>Songdo Edge Intelligence</h1>
+<p class="subtitle">IoT Edge Gateway (OS4) - Techno-Strip Tower - Live Monitoring</p>
+<p id="connection">Connecting to edge node...</p>
+
+<section class="card">
+    <h2 class="section-title">WAN Connection</h2>
+    <p>Status: <span id="wan-status" class="badge unknown">Checking...</span></p>
+    <button id="wan-offline" type="button">Simulate WAN Internet Cut</button>
+    <button id="wan-online" type="button">Restore WAN Connection</button>
+    <p id="wan-message" class="detail">Control the simulated upstream connection.</p>
+</section>
+
+<section class="card">
+    <h2 class="section-title">Simulated Devices (demo controls)</h2>
+    <p class="detail">These switches steer the SIMULATED sensors only. Highlighted = on.</p>
+    <div id="sim-buttons"></div>
+</section>
+
+<div class="grid">
+    <section class="card">
+        <div class="label">Mist Cannon Relay</div>
+        <div class="value" id="relay">&mdash;</div>
+        <span id="relay-badge" class="badge unknown">No data</span>
+        <p class="detail" id="relay-detail">Applied &mdash; / rejected as expired &mdash;</p>
+    </section>
+    <section class="card">
+        <div class="label">PM2.5 (ug/m3)</div>
+        <div class="value" id="pm25">&mdash;</div>
+        <span id="pm25-badge" class="badge unknown">No data</span>
+        <p class="detail" id="pm25-detail">&mdash;</p>
+    </section>
+    <section class="card">
+        <div class="label">Noise (dB) / Light (lux)</div>
+        <div class="value" id="context">&mdash;</div>
+        <span id="night-badge" class="badge unknown">No data</span>
+    </section>
+    <section class="card">
+        <div class="label">Pending Events (outbox)</div>
+        <div class="value" id="pending-events">&mdash;</div>
+        <p class="detail">Waiting for the Urban Data Platform</p>
+    </section>
+    <section class="card">
+        <div class="label">Ingest Queue</div>
+        <div class="value" id="queue-size">&mdash;</div>
+        <p class="detail" id="queue-detail">Dropped: &mdash;</p>
+    </section>
+    <section class="card">
+        <div class="label">AirKorea Station Benchmark</div>
+        <div class="value" id="baseline-value">&mdash;</div>
+        <span id="baseline-badge" class="badge unknown">Waiting</span>
+        <p class="detail" id="baseline-detail">&mdash;</p>
+    </section>
+</div>
+
+<section class="card">
+    <h2 class="section-title">Sensor Channels</h2>
+    <table>
+        <thead><tr><th>Sensor</th><th>Status</th><th>Latest</th><th>Silent for</th><th>Stored</th>
+            <th>Out of order</th><th>Max lateness</th><th>Rejected</th><th>Malformed</th></tr></thead>
+        <tbody id="channels"><tr><td colspan="9" class="empty">Waiting for API data...</td></tr></tbody>
+    </table>
+    <p class="detail" id="sockets"></p>
+</section>
+
+<section class="card">
+    <h2 class="section-title">Process Health</h2>
+    <table>
+        <thead><tr><th>Process</th><th>PID</th><th>Status</th><th>CPU (%)</th><th>Memory (MB)</th><th>Ctx switches (voluntary / involuntary)</th></tr></thead>
+        <tbody id="workers"><tr><td colspan="6" class="empty">Waiting for API data...</td></tr></tbody>
+    </table>
+</section>
+
+<section class="card">
+    <h2 class="section-title">Recent Readings (event time vs receipt time)</h2>
+    <table>
+        <thead><tr><th>Sensor</th><th>Value</th><th>Unit</th><th>Observed at (sensor)</th><th>Received at (node)</th><th>Lateness</th><th>Order</th></tr></thead>
+        <tbody id="readings"><tr><td colspan="7" class="empty">Waiting for readings...</td></tr></tbody>
+    </table>
+</section>
+
+<section class="card">
+    <h2 class="section-title">Recent Decisions and Actuations</h2>
+    <table>
+        <thead><tr><th>Action</th><th>Value</th><th>Reason</th><th>Timestamp</th></tr></thead>
+        <tbody id="decisions"><tr><td colspan="4" class="empty">Waiting for decisions...</td></tr></tbody>
+    </table>
+</section>
+
+<script>
+    const SIM_LABELS = {
+        episode: "Dust episode", extreme: "Very Bad dust", night: "Quiet night",
+        mute_pm25: "PM2.5 sensor hangs", stuck_pm25: "PM2.5 sensor frozen", pause: "Pause all sensors",
+    };
+    let thresholds = { pm25_bad: 50, pm25_very_bad: 75 };
+
+    function safeText(value) { return String(value ?? "—"); }
+    function formatTime(value) {
+        if (!value) return "—";
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? safeText(value) : date.toLocaleTimeString([], { hour12: false }) + "." + String(date.getMilliseconds()).padStart(3, "0");
+    }
+    function makeCell(value, cssClass) {
+        const td = document.createElement("td");
+        td.textContent = safeText(value);
+        if (cssClass) td.className = cssClass;
+        return td;
+    }
+    function badgeCell(text, cssClass) {
+        const td = document.createElement("td");
+        const span = document.createElement("span");
+        setBadge(span, text, cssClass);
+        td.appendChild(span);
+        return td;
+    }
+    function showMessage(tbody, columns, message) {
+        tbody.replaceChildren();
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+        cell.colSpan = columns; cell.className = "empty"; cell.textContent = message;
+        row.appendChild(cell); tbody.appendChild(row);
+    }
+    function setBadge(element, text, cssClass) {
+        element.textContent = text;
+        element.className = `badge ${cssClass}`;
+    }
+    const statusClass = s => s === "OK" ? "ok" : (s === "NO_DATA" ? "unknown" : "alert");
+
+    async function post(path) {
+        const response = await fetch(path, { method: "POST" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+    }
+    async function setWanConnection(online) {
+        const message = document.getElementById("wan-message");
+        message.textContent = "Updating WAN connection...";
+        try {
+            const result = await post(online ? "/api/wan/online" : "/api/wan/offline");
+            message.textContent = result.message;
+            await refreshDashboard();
+        } catch (error) { message.textContent = `Failed: ${error.message}`; }
+    }
+    document.getElementById("wan-offline").addEventListener("click", () => setWanConnection(false));
+    document.getElementById("wan-online").addEventListener("click", () => setWanConnection(true));
+
+    function renderSimButtons(sim) {
+        const box = document.getElementById("sim-buttons");
+        if (box.children.length === 0) {
+            for (const name of Object.keys(SIM_LABELS)) {
+                const button = document.createElement("button");
+                button.id = `sim-${name}`; button.type = "button"; button.textContent = SIM_LABELS[name];
+                button.addEventListener("click", async () => {
+                    const turnOn = !button.classList.contains("on");
+                    try { await post(`/api/sim/${name}/${turnOn ? "on" : "off"}`); await refreshDashboard(); } catch (e) {}
+                });
+                box.appendChild(button);
+            }
+        }
+        for (const [name, on] of Object.entries(sim || {})) {
+            const button = document.getElementById(`sim-${name}`);
+            if (button) button.classList.toggle("on", on);
+        }
+    }
+
+    function latest(readings, sensorId) { return readings.filter(r => r.sensor_id === sensorId).at(-1); }
+
+    async function refreshDashboard() {
+        const connection = document.getElementById("connection");
+        try {
+            const response = await fetch("/api/status", { cache: "no-store" });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            thresholds = data.thresholds || thresholds;
+
+            setBadge(document.getElementById("wan-status"),
+                data.wan_online === true ? "WAN ONLINE" : "WAN OFFLINE (DISCONNECTED)",
+                data.wan_online === true ? "running" : "stopped");
+            connection.textContent = `Connected · ${data.node_id} · last updated ${new Date().toLocaleTimeString()}`;
+            renderSimButtons(data.sim);
+
+            const channels = data.channels || {};
+            const relay = data.relay_state;
+            if (relay) {
+                document.getElementById("relay").textContent = relay.state;
+                setBadge(document.getElementById("relay-badge"),
+                    relay.state === "ON" ? "SPRAYING (command alive)" : "Off", relay.state === "ON" ? "alert" : "normal");
+                const act = data.actuator || {};
+                document.getElementById("relay-detail").textContent =
+                    `Version ${relay.version} · applied ${act.applied ?? 0} / rejected as expired ${act.expired ?? 0}`;
+            }
+
+            const pm = channels.PM25;
+            if (pm && pm.value != null) {
+                document.getElementById("pm25").textContent = Number(pm.value).toFixed(1);
+                const bad = pm.value > thresholds.pm25_bad;
+                const label = pm.status !== "OK" ? `CHANNEL ${pm.status}` : (pm.value > thresholds.pm25_very_bad ? "VERY BAD" : (bad ? "BAD" : "Normal"));
+                setBadge(document.getElementById("pm25-badge"), label, pm.status !== "OK" || bad ? "alert" : "normal");
+                document.getElementById("pm25-detail").textContent = `Mist rule: above ${thresholds.pm25_bad} ug/m3 (30 s TTL)`;
+            }
+            const noise = channels.NOISE, lux = channels.LUX;
+            if (noise && lux && noise.value != null && lux.value != null) {
+                document.getElementById("context").textContent = `${Number(noise.value).toFixed(0)} dB / ${Number(lux.value).toFixed(0)} lx`;
+                const dark = lux.value < 10 && noise.value < 45;
+                setBadge(document.getElementById("night-badge"), dark ? "QUIET NIGHT (pump held unless Very Bad)" : "Day / normal", dark ? "warning" : "normal");
+            }
+
+            document.getElementById("pending-events").textContent = safeText(data.pending_events ?? 0);
+            const queue = data.queue;
+            if (queue) {
+                document.getElementById("queue-size").textContent = `${queue.size} / ${queue.maxsize}`;
+                document.getElementById("queue-detail").textContent = `Dropped: ${queue.dropped_count} · put: ${queue.put_count}`;
+            }
+
+            const base = data.baseline || {};
+            const check = base.last_check, source = base.source || {};
+            if (check) {
+                document.getElementById("baseline-value").textContent = `${check.local_median} vs ${check.station_value}`;
+                setBadge(document.getElementById("baseline-badge"),
+                    `${check.status} (bias ${check.bias > 0 ? "+" : ""}${check.bias})`, check.status === "AGREE" ? "ok" : "warning");
+                document.getElementById("baseline-detail").textContent =
+                    `Local median vs station ${source.station} (${check.match_kind}); grades ${check.local_grade} / ${check.baseline_grade}` +
+                    (source.is_sample ? " · SAMPLE DATA (synthetic)" : "");
+            } else if (source.source) {
+                setBadge(document.getElementById("baseline-badge"), source.source === "none" ? "No cache file" : "Collecting readings...",
+                    source.source === "none" ? "stopped" : "unknown");
+                document.getElementById("baseline-detail").textContent =
+                    source.source === "none" ? "No baseline file cached" : `${source.source}${source.is_sample ? " · SAMPLE DATA (synthetic)" : ""}`;
+            }
+
+            const channelBody = document.getElementById("channels");
+            channelBody.replaceChildren();
+            for (const [sid, ch] of Object.entries(channels)) {
+                const row = document.createElement("tr");
+                row.appendChild(makeCell(sid));
+                row.appendChild(badgeCell(ch.status ?? "NO_DATA", statusClass(ch.status)));
+                row.appendChild(makeCell(ch.value == null ? "—" : ch.value));
+                row.appendChild(makeCell(ch.silence_s == null ? "—" : `${ch.silence_s} s`));
+                row.appendChild(makeCell(ch.stored ?? 0));
+                row.appendChild(makeCell(ch.out_of_order ?? 0));
+                row.appendChild(makeCell(`${ch.max_lateness_s ?? 0} s`));
+                row.appendChild(makeCell(ch.rejected ?? 0));
+                row.appendChild(makeCell(ch.parse_errors ?? 0));
+                channelBody.appendChild(row);
+            }
+            if (Object.keys(channels).length === 0) showMessage(channelBody, 9, "No channel data yet");
+            document.getElementById("sockets").textContent =
+                Object.keys(data.sockets || {}).length ? "Unix sockets: " + Object.values(data.sockets).join("  ") : "";
+
+            const workerList = Object.entries(data.workers || {});
+            const workersBody = document.getElementById("workers");
+            workersBody.replaceChildren();
+            if (workerList.length === 0) showMessage(workersBody, 6, "No worker data available");
+            for (const [name, w] of workerList) {
+                const row = document.createElement("tr");
+                row.appendChild(makeCell(name));
+                row.appendChild(makeCell(w.pid ?? "—"));
+                row.appendChild(badgeCell(w.status ?? "unknown", w.status === "running" ? "running" : (w.status === "stopped" ? "stopped" : "unknown")));
+                row.appendChild(makeCell(w.cpu_percent == null ? "—" : `${Number(w.cpu_percent).toFixed(1)}%`));
+                row.appendChild(makeCell(w.memory_mb == null ? "—" : `${Number(w.memory_mb).toFixed(2)} MB`));
+                row.appendChild(makeCell(w.ctx_voluntary == null ? "—" : `${w.ctx_voluntary} / ${w.ctx_involuntary}`));
+                workersBody.appendChild(row);
+            }
+
+            const readings = data.recent_readings || [];
+            const readingsBody = document.getElementById("readings");
+            readingsBody.replaceChildren();
+            if (readings.length === 0) showMessage(readingsBody, 7, "No sensor readings yet");
+            for (const item of [...readings].reverse().slice(0, 14)) {
+                const row = document.createElement("tr");
+                row.appendChild(makeCell(item.sensor_id));
+                row.appendChild(makeCell(item.value));
+                row.appendChild(makeCell(item.unit));
+                row.appendChild(makeCell(formatTime(item.observed_at)));
+                row.appendChild(makeCell(formatTime(item.received_at)));
+                row.appendChild(makeCell(`${item.lateness_s} s`, item.lateness_s >= 0.5 ? "late" : ""));
+                row.appendChild(makeCell(item.in_order ? "in order" : "OUT OF ORDER (late)", item.in_order ? "" : "late"));
+                readingsBody.appendChild(row);
+            }
+
+            const decisions = [...(data.recent_decisions || []), ...(data.recent_actuations || [])]
+                .sort((a, b) => String(a.timestamp).localeCompare(String(b.timestamp)));
+            const decisionsBody = document.getElementById("decisions");
+            decisionsBody.replaceChildren();
+            if (decisions.length === 0) showMessage(decisionsBody, 4, "No decisions recorded yet");
+            for (const item of [...decisions].reverse()) {
+                const row = document.createElement("tr");
+                row.appendChild(makeCell(item.action));
+                row.appendChild(makeCell(item.value));
+                row.appendChild(makeCell(item.reason));
+                row.appendChild(makeCell(formatTime(item.timestamp)));
+                decisionsBody.appendChild(row);
+            }
+        } catch (error) {
+            connection.textContent = `Connection failed: ${error.message}. Is the edge supervisor running?`;
+        }
+    }
+
+    refreshDashboard();
+    setInterval(refreshDashboard, 2000);
+</script>
+</body>
+</html>

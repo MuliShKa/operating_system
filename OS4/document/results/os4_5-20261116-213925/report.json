@@ -1,0 +1,87 @@
+{
+  "scenario": "OS4-5",
+  "offline_seconds": 600,
+  "passed": true,
+  "checks": [
+    {
+      "status": "PASS",
+      "name": "online delivery works before the cut",
+      "detail": "receiver holds 3 events"
+    },
+    {
+      "status": "PASS",
+      "name": "the WAN stayed cut for the whole window",
+      "detail": "nobody pressed Restore during the run"
+    },
+    {
+      "status": "PASS",
+      "name": "every worker kept running during the outage",
+      "detail": "8/8 running at every sample"
+    },
+    {
+      "status": "PASS",
+      "name": "local sensing and storage continued",
+      "detail": "1045 events stored offline (about 1020 expected)"
+    },
+    {
+      "status": "PASS",
+      "name": "nothing was delivered while offline",
+      "detail": "receiver 3 -> 3"
+    },
+    {
+      "status": "PASS",
+      "name": "outbox accumulated every offline event",
+      "detail": "pending 5 -> 1050 for 1045 new events"
+    },
+    {
+      "status": "PASS",
+      "name": "local decisions continued (mist rule)",
+      "detail": "38 decisions recorded while offline"
+    },
+    {
+      "status": "PASS",
+      "name": "AirKorea benchmark kept running offline from the local cache",
+      "detail": "29 baseline checks while offline"
+    },
+    {
+      "status": "PASS",
+      "name": "backlog drained after reconnect",
+      "detail": "pending 1050 -> 0 in 8 s (a few live events may still be arriving)"
+    },
+    {
+      "status": "PASS",
+      "name": "receiver ignores a replayed event (idempotent)",
+      "detail": "replay answered duplicate=True, receiver count 1066 -> 1066"
+    },
+    {
+      "status": "PASS",
+      "name": "outbox is empty once the sensors are paused",
+      "detail": "1068 events, 0 still pending"
+    },
+    {
+      "status": "PASS",
+      "name": "no event lost locally (every event has an outbox row)",
+      "detail": "1068 events, 1068 outbox rows"
+    },
+    {
+      "status": "PASS",
+      "name": "100 % delivery acknowledgement: every event is at the receiver",
+      "detail": "1068 of 1068 events acknowledged (100.0 %)"
+    },
+    {
+      "status": "PASS",
+      "name": "nothing at the receiver that the node did not produce",
+      "detail": "0 unknown IDs"
+    },
+    {
+      "status": "PASS",
+      "name": "benchmark compared local PM2.5 with station 131233",
+      "detail": "30 comparisons stored; source=airkorea_131233_SAMPLE_synthetic.csv; SAMPLE DATA: synthetic, not the real station"
+    },
+    {
+      "status": "PASS",
+      "name": "most benchmark checks agree within tolerance",
+      "detail": "30/30 AGREE"
+    }
+  ]
+}

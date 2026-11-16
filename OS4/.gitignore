@@ -1,0 +1,14 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+
+# Local databases, backups and scenario run output (official reports go to document/results/)
+data/*.db
+data/*.db-wal
+data/*.db-shm
+data/backups/*
+!data/backups/.gitkeep
+data/runs/
+data/run/
+
+.venv/

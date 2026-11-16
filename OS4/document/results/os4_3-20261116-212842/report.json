@@ -1,0 +1,23 @@
+{
+  "scenario": "OS4-3",
+  "decisions": {
+    "MIST_CANNON_RELAY": 1,
+    "MIST_RELAY_OFF": 1,
+    "MIST_RELAY_ON": 1
+  },
+  "ttl_after_last_high_s": 30.28888964653015,
+  "threshold": 50,
+  "ttl_s": 30,
+  "checks": {
+    "normal air: relay stays OFF and no dispatch": true,
+    "PM2.5 above 50: relay switched ON within 15 s": true,
+    "relay stays ON while high readings keep renewing the command": true,
+    "dispatch decision MIST_CANNON_RELAY recorded once for the episode": true,
+    "relay ON recorded by the Actuator (MIST_RELAY_ON)": true,
+    "relay switched OFF by itself after the episode": true,
+    "OFF came 30 s (TTL) after the last high reading (28-34 s)": true,
+    "relay OFF recorded (MIST_RELAY_OFF)": true,
+    "actuation events (ON then OFF) are queued for the platform": true,
+    "every worker still running": true
+  }
+}

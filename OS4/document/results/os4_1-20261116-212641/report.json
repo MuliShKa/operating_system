@@ -1,0 +1,31 @@
+{
+  "scenario": "OS4-1",
+  "counts": {
+    "PM25": 15,
+    "NOISE": 31,
+    "LUX": 6
+  },
+  "rates_per_s": {
+    "PM25": 0.49999823083959377,
+    "NOISE": 1.0333296770684939,
+    "LUX": 0.19999929233583752
+  },
+  "ingest_cpu_s": 0.03,
+  "elapsed_s": 30.000106149999965,
+  "checks": {
+    "all three sensors delivered readings": true,
+    "three different wire formats parsed without a single parse error": true,
+    "PM25 rate matches its period (2.0 s)": true,
+    "NOISE rate matches its period (1.0 s)": true,
+    "LUX rate matches its period (5.0 s)": true,
+    "rates differ across sensors (asynchronous streams)": true,
+    "the three Unix sockets exist as socket files": true,
+    "ONE process (Ingest) owns all three sockets": true,
+    "Ingest waits in epoll (eventpoll fd present)": true,
+    "Ingest is not busy-polling (< 5 % CPU)": true,
+    "a malformed datagram was counted, not fatal": true,
+    "other sensors kept flowing meanwhile": true,
+    "every Ingest worker still running": true,
+    "every stored reading has observed_at and received_at": true
+  }
+}

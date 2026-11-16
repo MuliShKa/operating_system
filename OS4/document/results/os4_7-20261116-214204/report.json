@@ -1,0 +1,18 @@
+{
+  "scenario": "OS4-7 (extra)",
+  "hold_decisions": 1,
+  "checks": {
+    "illumination and noise sensors report a dark, quiet street": true,
+    "night + Bad: the hold is reported (MIST_HELD_QUIET_HOURS)": true,
+    "night + Bad: the pump stays OFF for 15+ s": true,
+    "the hold is reported once per episode, not at every reading": true,
+    "no dispatch decision while held": true,
+    "night + Very Bad: the pump starts (override)": true,
+    "the override is named in the decision reason": true,
+    "the relay goes OFF after the dust ends": true,
+    "day returns: sensors report a bright, noisy street": true,
+    "day + Bad: the pump starts as usual": true,
+    "the daytime decision does not mention an override": true,
+    "every worker still running": true
+  }
+}

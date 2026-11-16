@@ -1,0 +1,60 @@
+# Master configuration for the OS4 node (IoT Edge Gateway, Techno-Strip Tower).
+# Values marked "handbook" come from the course handbook. Values marked
+# "team decision" are NOT defined by the handbook: we must be able to justify them.
+
+node_id: EDGE_NODE_OS4_IOT_HUB
+location_name: Techno-Strip Tower
+latitude: 37.3812
+longitude: 126.6620
+
+queue_size: 500            # handbook: bounded queue, drop-oldest
+
+# --- OS4-1: three sensors with different rates, units and wire formats ----------
+# period_s     : how often the (simulated) sensor produces a reading
+# valid_min/max: physically plausible range; anything outside is rejected at the door
+# stale_after_s: no reading for this long = the channel is considered silent (team decision)
+# stuck_check  : detect a frozen sensor (same value N times in a row)
+sensors:
+  PM25:
+    unit: ug/m3
+    period_s: 2.0
+    valid_min: 0
+    valid_max: 1000
+    stale_after_s: 10.0
+    stuck_check: true
+  NOISE:
+    unit: dB
+    period_s: 1.0
+    valid_min: 20
+    valid_max: 140
+    stale_after_s: 5.0
+    stuck_check: false
+  LUX:
+    unit: lux
+    period_s: 5.0
+    valid_min: 0
+    valid_max: 120000
+    stale_after_s: 20.0
+    stuck_check: false      # real light sensors legitimately read 0 lux all night
+
+# --- OS4-3: dust suppression mist cannon ---------------------------------------
+pm25_bad_threshold: 50          # handbook: "Korea Bad threshold (> 50 ug/m3)"
+mist_command_ttl_seconds: 30.0  # handbook: MIST_CANNON_RELAY with 30-second TTL
+stuck_repeat_count: 6           # team decision: 6 identical PM2.5 readings in a row = frozen sensor
+
+# --- OS4-7 (extra scenario): night quiet-hours policy ------------------------------
+# The pump is loud. If it is dark AND the street is quiet, do not run it for an
+# ordinary "Bad" reading; only for a "Very Bad" one (emergency override).
+pm25_very_bad_threshold: 75     # team decision (Korean "Very Bad" band starts above 75)
+quiet_night_lux: 10             # team decision: below this = dark
+quiet_night_noise_db: 45        # team decision: below this = quiet street
+context_max_age_s: 30           # a lux/noise reading older than this is not trusted as context
+
+# --- OS4-5: AirKorea baseline benchmark (Songdo station 131233) -----------------
+airkorea_station: "131233"
+airkorea_csv: sources/airkorea_131233_pm25.csv
+airkorea_sample_csv: sources/airkorea_131233_SAMPLE_synthetic.csv
+baseline_window_s: 60           # team decision: compare the median of the last 60 s of local PM2.5 ...
+baseline_min_readings: 5        # ... but only if at least this many readings are in the window
+baseline_check_every_s: 20      # team decision: one comparison every 20 s
+baseline_tolerance_ugm3: 15     # team decision: |local - station| above this = "DEVIATES"

@@ -1,0 +1,32 @@
+{
+  "scenario": "OS4-6 (extra)",
+  "decisions": {
+    "MIST_CANNON_RELAY": 2,
+    "MIST_RELAY_OFF": 2,
+    "MIST_RELAY_ON": 2,
+    "SENSOR_RECOVERED": 2,
+    "SENSOR_STALE": 1,
+    "SENSOR_STUCK": 1
+  },
+  "ttl_after_last_accepted_s": 30.198284149169922,
+  "checks": {
+    "NaN, negative and out-of-range values are rejected (3)": true,
+    "garbage and wrong-device messages are counted as malformed": true,
+    "no implausible value was ever stored": true,
+    "bad datagrams did not move the relay": true,
+    "relay was ON during the episode": true,
+    "hung sensor: channel reported STALE within 25 s": true,
+    "hung sensor: relay fell OFF by itself 28-34 s after the last accepted reading": true,
+    "hung sensor: relay stays OFF while the channel is silent": true,
+    "hung sensor: the other channels kept working": true,
+    "hung sensor: SENSOR_STALE decision recorded": true,
+    "sensor back: channel OK again": true,
+    "sensor back: spraying resumes only after it is trusted again": true,
+    "frozen sensor: channel reported STUCK": true,
+    "frozen sensor: relay switched OFF although every reading is above 50": true,
+    "frozen sensor: readings kept arriving (device was talking)": true,
+    "SENSOR_STUCK and SENSOR_RECOVERED decisions recorded": true,
+    "channel OK again after the fault is cleared": true,
+    "no worker crashed during any fault": true
+  }
+}

@@ -14,7 +14,7 @@
 | 🏢 **OS1** | Smart building gateway: occupancy and CO₂ sensors, with local HVAC logic | 🧩 Folder scaffold; no working application implementation yet |
 | 🤖 **OS2** | Robot edge controller: obstacle distance, emergency stop, and offline operation | ✅ Simulation implemented; [detailed README](OS2/README.md) |
 | 🚦 **OS3** | Autonomous mobility node: pedestrian-aware variable speed sign, bus stop context, and offline operation | ✅ Educational simulation implemented and tested; [detailed README](OS3/README.md) |
-| 🌫️ **OS4** | IoT gateway: air quality and noise monitoring, with local processing | 🧩 Folder scaffold; no working application implementation yet |
+| 🌫️ **OS4** | IoT gateway: PM2.5, noise and light streams, dust-suppression mist cannon, backups, AirKorea benchmark | ✅ Educational simulation implemented and tested; [detailed README](OS4/README.md) |
 | 🌊 **OS5** | Fault-tolerant smart-city node: water level, power, local decisions, and event delivery after connectivity returns | ✅ Educational simulation available; [project README](OS5/README.md) |
 
 The OS1–OS5 names and scenarios reflect the team mini-projects described in the
@@ -76,15 +76,23 @@ intersection.
 
 ### 🌫️ OS4 — IoT Edge Gateway
 
-The **environmental monitoring gateway** is intended to collect air-quality and
-noise measurements.
+The **environmental monitoring gateway** on the Techno-Strip Tower aggregates three different sensors
+and decides locally whether to run a dust-suppression mist cannon.
 
-- **Input:** PM2.5 and equivalent noise-level readings.
-- **Goal:** receive and process measurements on a local node.
-- **Intended output:** a decision for a controlled device, such as a
-  demonstration relay command.
-- **Status:** `OS4/` currently contains only a directory structure; its working
-  logic has not yet been implemented.
+- **Input:** simulated PM2.5, ambient noise and illumination, each with its own rate, unit and message
+  format, sent over Unix domain sockets to one Ingest process (epoll).
+- **Goal:** keep working when the WAN is cut. Readings keep their sensor timestamp (`observed_at`)
+  separately from the arrival time (`received_at`); late readings are ordered by event time.
+- **Output:** `MIST_CANNON_RELAY` command when PM2.5 > 50 µg/m³, valid for 30 s; a separate Actuator
+  rejects stale commands and switches the relay off when the command expires. No real pump is controlled.
+- **Features:** durable SQLite outbox with idempotent receiver and 100 % acknowledgement check, `flock`-guarded
+  online backup with a systemd timer, systemd service, Docker image, dashboard, a cached AirKorea station
+  benchmark, and two extra scenarios (sensor-fault fail-safe, quiet-night policy).
+- **Status:** an educational simulation is implemented, with an API, dashboard, unit tests, scenario
+  scripts (OS4-1 to OS4-7) and documentation. AirKorea data is a flagged synthetic sample until the real
+  station file is added.
+
+➡️ Setup, tests and scenarios: [OS4/README.md](OS4/README.md).
 
 ### 🌊 OS5 — Fault-Tolerant Smart-City Node
 
