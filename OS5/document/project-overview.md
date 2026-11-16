@@ -52,7 +52,7 @@ Follow this path to verify your local environment and run the full pipeline:
 cd scripts
 bash preflight.sh
 ```
-Checks Linux kernel version, active shell, Python 3.12, SQLite3, and required POSIX utilities (`ps`, `pkill`, `awk`, `sed`, `flock`, `curl`).
+Checks Linux kernel version, active shell, Python 3.12 or 3.14, SQLite3, and required POSIX utilities (`ps`, `pkill`, `awk`, `sed`, `flock`, `curl`).
 
 ### Step 2: Virtual Environment & Database Setup (Minutes 15–30)
 ```bash
@@ -71,11 +71,13 @@ Verifies:
 4. Deadlock detection with timeout recovery.
 5. Online SQLite database backup integrity check.
 
-### Step 4: Run All 25 Scenarios (Minutes 45–60)
+### Step 4: Run the OS5 Validation Suite (Minutes 45–60)
 ```bash
 python scenarios/run_all_scenarios.py
 ```
-Executes all 5 scenarios for all 5 teams (OS1 to OS5).
+Discovers and runs OS5 unit and integration tests, including worker recovery,
+backup integrity, and the compound WAN/Processor failure scenario. The other
+teams' scenarios are outside this repository's current OS5 implementation.
 
 ### Step 5: Launch the Signature Offline Demo & Local UI (Minutes 60–90)
 ```bash
@@ -107,7 +109,7 @@ Songdo_Edge_Intelligence/
 ├── docs/handbook/                      # XeLaTeX handbook source files
 ├── integration/                        # Mock upstream consumers
 ├── scenarios/
-│   └── run_all_scenarios.py            # Executable runner for all 25 scenarios
+│   └── run_all_scenarios.py            # OS5 unit and integration scenario runner
 ├── scripts/
 │   ├── preflight.sh                    # System environment audit
 │   ├── setup.sh                        # Environment initializer
@@ -174,9 +176,9 @@ stop cleanly when the computer is shutting down.
 
 The startup scripts are in `scripts/`:
 
-- `preflight.sh` checks that the computer uses Linux and has Bash, Python 3.12,
-   SQLite, and the command-line tools used by the project. It reports missing
-   tools before stopping.
+- `preflight.sh` checks that the computer uses Linux and has Bash, Python 3.12
+   or 3.14, SQLite, and the command-line tools used by the project. It reports
+   missing tools before stopping.
 - `setup.sh` creates the Python virtual environment in `.venv` and installs the
    packages from `requirements.txt`. It creates `data/os5.db`, runs
    `sql/schema.sql`, turns on SQLite WAL mode, and checks that WAL is active.
@@ -193,41 +195,36 @@ bash scripts/start_demo.sh
 The scripts are for Linux, so I should run them in Ubuntu or WSL, not directly
 in a normal Windows PowerShell window.
 
-At the time this document was written, `sql/schema.sql` is empty. Setup can
-create the database file and enable WAL, but the project tables will appear
-only after the database schema is added.
+The current setup applies the checked-in `sql/schema.sql` and verifies that
+SQLite WAL mode is active. The six demo workers share the supervisor-created
+IPC channels; the outbox synchronizes to a local idempotent receiver whenever
+WAN is online.
 
 ### Processes and Restart
 
-The supervisor is in `src/edge/supervisor.py`. It starts four named processes:
-`SensorGen`, `Processor`, `HealthMon`, and `API`.
+The supervisor is in `src/edge/supervisor.py`. It starts six named processes:
+`SensorGen`, `Processor`, `HealthMon`, `API`, `Receiver`, and `SyncWorker`.
 
-- Each process has a control queue. The supervisor sends the word `stop` to ask
-   the process to finish.
-- SIGINT (Ctrl+C) and SIGTERM set a shutdown flag. The main loop then starts a
-   clean shutdown.
-- `join()` waits for each child process to finish. This lets the parent collect
-   the child's result instead of leaving a zombie process.
-- If a child does not stop within two seconds, the supervisor terminates it and
-   waits for it again. It then closes the queues.
-- If a worker exits unexpectedly, the supervisor stops the other workers and
-   returns an error.
+- Workers share the bounded sensor queue and stop/WAN events created by the
+  supervisor.
+- SIGINT (Ctrl+C) and SIGTERM request shutdown; workers are joined, terminated,
+  or killed using bounded waits.
+- If a worker exits unexpectedly, the supervisor records its exit code and
+  restarts only that worker, reusing the existing IPC channels.
+- A worker may restart at most three times in a 60-second window. If it keeps
+  failing, the supervisor stops the remaining workers and returns an error.
 
-The worker functions are currently placeholders. They only wait for the `stop`
-message until the real sensor, processor, health, and API code is connected.
-Automatic restart after a worker is killed with SIGKILL is not implemented in
-this part yet; it is planned for W5.
+The worker processes are integrated with the sensor pipeline, health monitor,
+API, receiver, and sync worker. Unexpected worker exits trigger a bounded
+restart of only the failed process; systemd-level restart behavior remains a
+separate deployment concern.
 
 ### What I Checked
 
-- Python compiled the supervisor without a syntax error.
-- A local run started the four workers, sent the stop messages, and checked
-   that all workers exited and were joined.
-- SQLite setup logic was tested with a temporary database, and WAL mode was
-   checked after applying the schema file.
-- The full setup and demo still need to be run on Linux. The current schema is
-   empty, and the real worker functions and database integration are still in
-   progress.
+The final OS5 test and scenario run is deferred until the implementation work
+is complete. Use `python3 scenarios/run_all_scenarios.py` from the OS5 root;
+it discovers the focused and integration tests, including the compound WAN
+outage/Processor restart scenario.
 
 ### How to Switch Between My Branches
 

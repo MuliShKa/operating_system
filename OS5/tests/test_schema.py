@@ -1,27 +1,43 @@
-
-import sqlite3
+from contextlib import closing
+import sys
+import tempfile
+import unittest
 from pathlib import Path
+from unittest.mock import patch
 
-project_dir = Path(__file__).resolve().parents[1]
-schema_path = project_dir / "sql" / "schema.sql"
-database_path = project_dir / "data" / "songdo_test.db"
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-database_path.parent.mkdir(parents=True, exist_ok=True)
+from edge import storage
 
-with sqlite3.connect(database_path) as connection:
-    connection.executescript(
-        schema_path.read_text(encoding="utf-8")
-    )
 
-    tables = connection.execute("""
-        SELECT name
-        FROM sqlite_master
-        WHERE type = 'table'
-        AND name NOT LIKE 'sqlite_%'
-        ORDER BY name
-    """).fetchall()
+class TestDatabaseSchema(unittest.TestCase):
+    def test_initialization_creates_required_tables_and_wal(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            database_path = Path(temporary_directory) / "schema.db"
+            with patch.object(storage, "DATABASE_PATH", database_path):
+                storage.initialize_database()
 
-print("Database created:", database_path)
-print("Tables:")
-for (table_name,) in tables:
-    print("-", table_name)
+                with closing(storage.get_connection()) as connection:
+                    tables = {
+                        row["name"]
+                        for row in connection.execute(
+                            """
+                            SELECT name
+                            FROM sqlite_master
+                            WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
+                            """
+                        )
+                    }
+                    journal_mode = connection.execute(
+                        "PRAGMA journal_mode"
+                    ).fetchone()[0]
+
+        self.assertEqual(
+            tables,
+            {"decisions", "events", "outbox", "process_health"},
+        )
+        self.assertEqual(journal_mode.lower(), "wal")
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -5,8 +5,9 @@ one-command launcher for the Songdo edge node.
 
 ## Included in this task
 
-- `scripts/preflight.sh` checks for Linux, Bash, Python 3.12, SQLite3, and the
-  required command-line tools: `ps`, `pkill`, `awk`, `sed`, `flock`, and `curl`.
+- `scripts/preflight.sh` checks for Linux, Bash, Python 3.12 or 3.14, SQLite3,
+  and the required command-line tools: `ps`, `pkill`, `awk`, `sed`, `flock`,
+  and `curl`.
 - `scripts/setup.sh` creates `.venv` and installs the packages in
   `requirements.txt` (`psutil` and `PyYAML`).
 - `scripts/setup.sh` also creates `data/songdo.db`, applies `sql/schema.sql`, and
@@ -18,7 +19,7 @@ one-command launcher for the Songdo edge node.
 
 ## Run
 
-From the project root on a Linux machine with Python 3.12:
+From the project root on Linux or WSL with Python 3.12 or 3.14:
 
 ```bash
 bash scripts/preflight.sh

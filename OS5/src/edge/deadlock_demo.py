@@ -8,8 +8,12 @@ from edge.shared_counter import SharedCounter
 # How long a process waits for its second lock before giving back the first one.
 LOCK_TIMEOUT_S = 0.2
 
-# After this long, the processes still alive are considered stuck forever.
-GIVE_UP_AFTER_S = 1.0
+# Bound the whole demonstration, including lock acquisition retries.
+GIVE_UP_AFTER_S = 5.0
+
+# Stop retrying with a clear failure instead of allowing an indefinite livelock.
+MAX_LOCK_RETRIES = 10
+PROCESS_REAP_TIMEOUT_S = 1.0
 
 class DeadlockDemo:
     """
@@ -18,14 +22,15 @@ class DeadlockDemo:
     Process 1 takes A then wants B. Process 2 takes B then wants A.
     Each waits for the other forever: that is a deadlock.
     The fix: wait at most 0.2 s for the second lock; if it fails, give back the
-    first lock, pause a random time, and try again.
+    first lock, pause a random time, and retry up to a fixed limit.
 
     Run: PYTHONPATH=src python -m edge.deadlock_demo
     """
 
     def run(self, use_timeout: bool) -> dict:
         """
-        Start the two processes and return a dict: deadlocked, finished_workers, retries, elapsed_s.
+        Start both processes and report deadlock, completion, failures, retries,
+        and elapsed time.
         """
 
         lock_a = mp.Lock()
@@ -40,24 +45,43 @@ class DeadlockDemo:
 
         # The retries counter counts how many times a process gave back its first lock.
         retries = SharedCounter()
+        failed = SharedCounter()
 
         if use_timeout:
             work = self.work_with_timeout
         else:
             work = self.work_naive
-        process_1 = mp.Process(target=work, args=(lock_a, lock_b, both_hold_first, finished, retries))
-        process_2 = mp.Process(target=work, args=(lock_b, lock_a, both_hold_first, finished, retries))
+        process_1 = mp.Process(
+            target=work,
+            args=(lock_a, lock_b, both_hold_first, finished, retries, failed),
+        )
+        process_2 = mp.Process(
+            target=work,
+            args=(lock_b, lock_a, both_hold_first, finished, retries, failed),
+        )
         processes = [process_1, process_2]
 
         started = time.monotonic()
-        for process in processes:
-            process.start()
+        started_processes = []
+        try:
+            for process in processes:
+                process.start()
+                started_processes.append(process)
+        except BaseException as start_error:
+            try:
+                self._stop_and_reap_processes(started_processes)
+            except RuntimeError as cleanup_error:
+                raise RuntimeError(
+                    f"could not clean up after process startup failed: {cleanup_error}"
+                ) from start_error
+            raise
         deadlocked = self.wait_or_give_up(processes)
         elapsed = time.monotonic() - started
 
         return {
             "deadlocked": deadlocked,
             "finished_workers": finished.get_value(),
+            "failed_workers": failed.get_value(),
             "retries": retries.get_value(),
             "elapsed_s": round(elapsed, 3),
         }
@@ -73,14 +97,41 @@ class DeadlockDemo:
             time_left = max(0, deadline - time.monotonic())
             process.join(timeout=time_left)
 
-        deadlocked = False
+        deadlocked = any(process.is_alive() for process in processes)
+        exit_codes = {
+            process.name: process.exitcode
+            for process in processes
+        }
+        self._stop_and_reap_processes(processes)
+
+        if not deadlocked:
+            failed_workers = {
+                name: exit_code
+                for name, exit_code in exit_codes.items()
+                if exit_code != 0
+            }
+            if failed_workers:
+                raise RuntimeError(
+                    f"deadlock demo worker failed: {failed_workers}"
+                )
+        return deadlocked
+
+    @staticmethod
+    def _stop_and_reap_processes(processes: list[mp.Process]) -> None:
         for process in processes:
             if process.is_alive():
-                deadlocked = True
                 process.terminate()
-                # Collect the dead process so it is not left as a zombie.
-                process.join()
-        return deadlocked
+
+        for process in processes:
+            process.join(timeout=PROCESS_REAP_TIMEOUT_S)
+            if process.is_alive():
+                process.kill()
+                process.join(timeout=PROCESS_REAP_TIMEOUT_S)
+            if process.is_alive():
+                raise RuntimeError(
+                    f"could not reap deadlock demo process {process.name}"
+                )
+            process.close()
 
     def work_naive(
         self,
@@ -89,6 +140,7 @@ class DeadlockDemo:
         both_hold_first: Barrier,
         finished: SharedCounter,
         retries: SharedCounter,
+        _failed: SharedCounter,
     ) -> None:
         """
         Take the first lock, then wait for the second one forever.
@@ -118,6 +170,7 @@ class DeadlockDemo:
         both_hold_first: Barrier,
         finished: SharedCounter,
         retries: SharedCounter,
+        failed: SharedCounter,
     ) -> None:
         """
         Take the first lock, then try the second one for at most LOCK_TIMEOUT_S.
@@ -142,19 +195,31 @@ class DeadlockDemo:
         """
 
         first.acquire()
-        both_hold_first.wait()
-        while not second.acquire(timeout=LOCK_TIMEOUT_S):
-            # Give back what we hold so the other process can finish.
-            first.release()
-            retries.increment()
+        holds_first = True
+        try:
+            both_hold_first.wait(timeout=GIVE_UP_AFTER_S)
+            for attempt in range(MAX_LOCK_RETRIES + 1):
+                if second.acquire(timeout=LOCK_TIMEOUT_S):
+                    try:
+                        finished.increment()
+                    finally:
+                        second.release()
+                    return
 
-            # Random pause, so the two processes do not retry in lockstep.
-            time.sleep(random.uniform(0, LOCK_TIMEOUT_S))
+                retries.increment()
+                if attempt == MAX_LOCK_RETRIES:
+                    failed.increment()
+                    return
 
-            first.acquire()
-        finished.increment()
-        second.release()
-        first.release()
+                # Give back what we hold so the other process can make progress.
+                first.release()
+                holds_first = False
+                time.sleep(random.uniform(0, LOCK_TIMEOUT_S))
+                first.acquire()
+                holds_first = True
+        finally:
+            if holds_first:
+                first.release()
 
 
 if __name__ == "__main__":

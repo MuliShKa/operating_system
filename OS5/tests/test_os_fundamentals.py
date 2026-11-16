@@ -3,23 +3,36 @@
 Run: python tests/test_os_fundamentals.py -v
 """
 
-import multiprocessing as mp
+import fcntl
 import multiprocessing
+import multiprocessing as mp
+import os
+import socket
+import sqlite3
 from multiprocessing.queues import Queue
 from multiprocessing.sharedctypes import Synchronized
-import socket
 import sys
 import tempfile
 import time
 import unittest
 from pathlib import Path
-import sqlite3
-import os
+from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from edge.bounded_queue import STOP, BoundedQueue  # noqa: E402
-from edge.deadlock_demo import LOCK_TIMEOUT_S, DeadlockDemo  # noqa: E402
+from edge.backup import create_backup  # noqa: E402
+from edge.decision import (  # noqa: E402
+    WATER_THRESHOLD,
+    is_command_expired,
+    make_decision,
+    validate_water_level,
+)
+from edge.deadlock_demo import (  # noqa: E402
+    LOCK_TIMEOUT_S,
+    PROCESS_REAP_TIMEOUT_S,
+    DeadlockDemo,
+)
 from edge.ipc import IpcChannels  # noqa: E402
 from edge.priority_demo import PriorityDemo  # noqa: E402
 from edge.priority_queue import PriorityQueue  # noqa: E402
@@ -307,16 +320,46 @@ class TestRaceCondition(unittest.TestCase):
 
 class TestDeadlock(unittest.TestCase):
     def test_opposite_lock_order_deadlocks(self) -> None:
+        children_before = {process.pid for process in mp.active_children()}
         result = DeadlockDemo().run(use_timeout=False)
+        children_after = {process.pid for process in mp.active_children()}
+
         self.assertTrue(result["deadlocked"])
         self.assertEqual(result["finished_workers"], 0)
+        self.assertEqual(result["failed_workers"], 0)
+        self.assertEqual(children_after - children_before, set())
 
     def test_acquire_timeout_recovers(self) -> None:
+        children_before = {process.pid for process in mp.active_children()}
         result = DeadlockDemo().run(use_timeout=True)
+        children_after = {process.pid for process in mp.active_children()}
+
         self.assertFalse(result["deadlocked"])
         self.assertEqual(result["finished_workers"], 2)
+        self.assertEqual(result["failed_workers"], 0)
         self.assertGreaterEqual(result["retries"], 1)
         self.assertGreaterEqual(result["elapsed_s"], LOCK_TIMEOUT_S)
+        self.assertEqual(children_after - children_before, set())
+
+    def test_partial_process_start_failure_reaps_started_worker(self) -> None:
+        started_process = Mock()
+        started_process.name = "first-worker"
+        started_process.is_alive.side_effect = [True, False, False]
+        failing_process = Mock()
+        failing_process.start.side_effect = OSError("simulated start failure")
+
+        with patch(
+            "edge.deadlock_demo.mp.Process",
+            side_effect=[started_process, failing_process],
+        ):
+            with self.assertRaisesRegex(OSError, "simulated start failure"):
+                DeadlockDemo().run(use_timeout=False)
+
+        started_process.terminate.assert_called_once_with()
+        started_process.join.assert_called_once_with(
+            timeout=PROCESS_REAP_TIMEOUT_S
+        )
+        started_process.close.assert_called_once_with()
 
 
 # =========================================================================
@@ -328,12 +371,6 @@ class TestOSFundamentalsOS5(unittest.TestCase):
     Operating System fundamentals test suite for the OS5 node.
     Verifies concurrency, database (WAL) behavior, and failure scenarios.
     """
-
-    def setUp(self):
-        pass
-
-    def tearDown(self):
-        pass
 
     def test_race_condition_without_lock(self):
         """
@@ -430,22 +467,65 @@ class TestOSFundamentalsOS5(unittest.TestCase):
             os.remove(db_path)
 
     def test_water_level_rule_below_threshold(self):
-        pass
+        edge_decision, expires_at = make_decision(WATER_THRESHOLD - 0.1)
+        self.assertIsNone(edge_decision)
+        self.assertIsNone(expires_at)
+
+    def test_water_level_rule_at_threshold_does_not_open_gate(self):
+        edge_decision, expires_at = make_decision(WATER_THRESHOLD)
+        self.assertIsNone(edge_decision)
+        self.assertIsNone(expires_at)
 
     def test_water_level_rule_above_threshold(self):
-        pass
+        edge_decision, expires_at = make_decision(WATER_THRESHOLD + 0.1)
+        self.assertEqual(edge_decision.action, "BACKUP_SLUICE_GATE_OPEN")
+        self.assertGreater(expires_at, time.monotonic())
 
     def test_command_ttl_expiration(self):
-        pass
+        self.assertTrue(is_command_expired(time.monotonic() - 1))
+        self.assertFalse(is_command_expired(time.monotonic() + 1))
+        with patch("edge.decision.time.monotonic", return_value=123.0):
+            self.assertTrue(is_command_expired(123.0))
 
-    def test_process_restart_recovery(self):
-        pass
+    def test_water_level_rule_rejects_invalid_readings(self):
+        for value in (None, "3.1", True, float("nan"), float("inf"), -0.1):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    validate_water_level(value)
 
     def test_backup_with_flock(self):
-        pass
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            source = root / "source.db"
+            backup_directory = root / "backups"
+            backup_directory.mkdir()
+            lock_path = backup_directory / ".backup.lock"
 
-    def test_offline_demo_data_consistency(self):
-        pass
+            with sqlite3.connect(source) as connection:
+                connection.execute(
+                    "CREATE TABLE readings (reading_id INTEGER PRIMARY KEY, value REAL)"
+                )
+                connection.execute("INSERT INTO readings (value) VALUES (2.9)")
+
+            with lock_path.open("a+b") as lock_file:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                with self.assertRaisesRegex(
+                    BlockingIOError, "another database backup"
+                ):
+                    create_backup(source, backup_directory, backup_directory / "busy.db")
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+
+            backup_path = create_backup(source, backup_directory)
+            with sqlite3.connect(backup_path) as connection:
+                integrity = connection.execute(
+                    "PRAGMA integrity_check"
+                ).fetchone()[0]
+                reading = connection.execute(
+                    "SELECT value FROM readings"
+                ).fetchone()[0]
+
+            self.assertEqual(integrity, "ok")
+            self.assertEqual(reading, 2.9)
 
 
 if __name__ == '__main__':

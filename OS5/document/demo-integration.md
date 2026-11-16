@@ -21,13 +21,13 @@ bash scripts/start_demo.sh
 ```
 
 The script first checks the environment with `scripts/preflight.sh`. It
-requires Linux, Bash, Python 3.12, and the system utilities listed in the
+requires Linux, Bash, Python 3.12 or 3.14, and the system utilities listed in the
 preflight script. If the `.venv` virtual environment does not exist, the
 launcher calls `scripts/setup.sh`. Setup installs the project dependencies and
 creates `data/songdo.db` from the schema in `sql/schema.sql`.
 
 The launcher then starts `edge.supervisor` using Python's multiprocessing
-`spawn` method. The supervisor creates shared IPC channels and starts four
+`spawn` method. The supervisor creates shared IPC channels and starts six
 processes:
 
 | Process | What it does |
@@ -36,10 +36,13 @@ processes:
 | `Processor` | Reads the queue, stores each reading, evaluates the water-level rule, and stores any resulting decision. |
 | `HealthMon` | Writes process health heartbeats to SQLite. |
 | `API` | Serves the demo page and JSON status for workers and recent data. |
+| `Receiver` | Accepts events at a local mock upstream endpoint and deduplicates by event ID. |
+| `SyncWorker` | Sends pending outbox events when the simulated WAN is online. |
 
 The processes share one `IpcChannels` object. It contains a bounded queue for
-sensor readings and a shared stop flag. The IPC objects use the same `spawn`
-context as the supervisor.
+sensor readings, a shared stop flag, and a WAN-online event that starts set.
+Worker restarts reuse these same IPC channels. The IPC objects use the same
+`spawn` context as the supervisor.
 
 ## How a reading becomes a decision
 
@@ -49,22 +52,34 @@ context as the supervisor.
    volts.
 2. The events go into the bounded queue. Its maximum size is 500 items; if it
    fills up, the queue drops the oldest reading.
-3. `Processor` reads each event and stores it in the `events` table. Each event
-   gets a unique ID, and a corresponding `outbox` row is created atomically
-   with the event.
-4. For a water-level reading, `Processor` calls the rule in `edge.decision`.
-   When the value is **above 2.8 metres**, the rule creates a
+3. For a water-level reading, `Processor` rejects values that are not finite
+   numbers or are below zero. Rejected readings are logged and do not produce
+   an event or gate decision.
+4. `Processor` stores each accepted event in the `events` table with a unique
+   ID and creates a corresponding `outbox` row atomically.
+5. `Processor` reads the threshold from `config/node.yaml` (currently 2.8 m).
+   When a valid value is **above the configured threshold**, the rule creates a
    `BACKUP_SLUICE_GATE_OPEN` decision. The decision is stored in the `decisions`
    table.
-5. The decision gets a 10-second TTL based on a monotonic clock. The current
-   pipeline checks it immediately after creating it and stores the decision;
-   there is not yet a separate command queue or hardware actuator.
-6. The most recent readings, decisions, and pending outbox count are published
+6. The decision gets a 10-second TTL based on a monotonic clock. The processor
+   rejects an expired command before storing it. There is not yet a separate
+   command queue or hardware actuator.
+7. The most recent readings, decisions, and pending outbox count are published
    to shared state for the API.
 
 Voltage readings are stored and displayed, but there is no rule for voltage
-yet. All events in the `outbox` remain `pending`: sending them to a remote
-service and running a synchronizer are not implemented yet.
+yet. The `SyncWorker` sends pending events to the local mock receiver while
+WAN is online. During a simulated outage, they remain pending in SQLite and
+are sent after connectivity is restored.
+
+## WAN outage and worker recovery
+
+The dashboard's WAN controls clear or set the shared `wan_online` event; they
+do not disconnect the computer from the internet. If a worker exits
+unexpectedly, the supervisor restarts only that worker and gives it the
+existing IPC channels. The compound-failure test holds the WAN offline,
+restarts `Processor`, verifies that the outbox remains pending, then restores
+WAN and checks that every event reaches the deduplicating receiver once.
 
 ## What I see in the browser
 
@@ -80,7 +95,8 @@ second. It displays:
 - worker status and process IDs (PIDs);
 - recent sensor readings;
 - recent decisions;
-- the number of events waiting in the outbox.
+- the number of events waiting in the outbox;
+- WAN state and controls for simulating an outage and restoring connectivity.
 
 The HTTP server listens only on `127.0.0.1`. This demo page is intended for the
 local computer, not for access from the network.
@@ -94,32 +110,25 @@ their loops. The supervisor waits for the child processes to finish. If a
 process does not stop within the timeout, the supervisor terminates and reaps
 it.
 
-## Checks I ran
+## Deferred checks
 
-From the project root in Linux/WSL:
+The focused and full OS5 tests are deferred until the implementation steps are
+complete. Run them from the project root in Linux/WSL during final validation:
 
 ```bash
-python3 tests/test_os_fundamentals.py -v
-PYTHONPATH=src python3 tests/test_demo_integration.py -v
-python3 test_schema.py
-python3 test_storage.py
+python3 scenarios/run_all_scenarios.py
 ```
 
-I also started the full supervisor, checked the page and `GET /api/status`,
-confirmed all four processes were running, confirmed readings and decisions
-appeared, and checked that events, decisions, and health heartbeats were stored
-in SQLite.
+The compound-failure test is in `tests/test_compound_failure.py`.
 
 ## What is not included yet
 
-- Automatic restart of a crashed worker.
 - Real sensor input and control of physical equipment.
-- Sending pending outbox events to a server, including retry and backoff.
-- Browser controls for WAN status or a simulated network outage.
 - Protected public web access; the API is currently local-only.
 
-For these reasons, I describe this as a minimal end-to-end local demo of the
-components, not a production-ready system.
+The receiver is a local mock service, not a remote cloud endpoint. For these
+reasons, I describe this as an educational local demo, not a production-ready
+control system.
 
 ## Where the code lives
 
@@ -133,7 +142,11 @@ components, not a production-ready system.
 - `src/edge/decision.py` — water-level rule and command TTL.
 - `src/edge/storage.py` and `sql/schema.sql` — SQLite functions and tables for
   events, decisions, process health, and the outbox.
+- `src/edge/backup.py` — locked, integrity-checked online database backup.
+- `src/edge/receiver.py` and `src/edge/sync_worker.py` — local outbox delivery.
 - `src/edge/api_server.py` and `src/ui/static/index.html` — local API and
   dashboard page.
 - `tests/test_demo_integration.py` — test for the path from the queue through
   the rule into SQLite and dashboard state.
+- `tests/test_compound_failure.py` — WAN outage plus Processor restart scenario.
+- `scenarios/run_all_scenarios.py` — discover and run the complete OS5 test suite.

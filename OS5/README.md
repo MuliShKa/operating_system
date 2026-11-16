@@ -8,7 +8,7 @@ The project also demonstrates **store-and-forward synchronization**: when the si
 
 ## Features
 
-- Generates simulated water-level and voltage readingas.
+- Generates simulated water-level and voltage readings.
 - Uses Python multiprocessing to run independent workers.
 - Passes sensor events through a bounded inter-process communication (IPC) queue.
 - Applies a local water-level rule and records decisions.
@@ -16,7 +16,7 @@ The project also demonstrates **store-and-forward synchronization**: when the si
 - Provides an HTTP API and browser dashboard for monitoring activity.
 - Simulates WAN disconnection and reconnection.
 - Queues events locally while offline and synchronizes them when connectivity returns.
-- Uses event IDs to help the mock receiver avoid duplicate records.
+- Uses event IDs to keep the mock receiver idempotent.
 
 ## Architecture
 
@@ -55,15 +55,17 @@ API ----------------> Dashboard and status endpoints
 
 The queue has a maximum capacity of 500 items. The processor stores readings and records decisions. When the simulated WAN connection is offline, the sync worker waits and pending events accumulate in the outbox. When connectivity is restored, it attempts to deliver those events to the receiver.
 
-The local rule records a `BACKUP_SLUICE_GATE_OPEN` decision when the simulated water level exceeds 2.8 metres. This is a software decision only; it does not operate a real gate.
+The local rule reads its water-level threshold from `config/node.yaml` (currently 2.8 metres). It rejects malformed, non-finite, or negative water readings; no physical upper sensor limit is specified. It records a `BACKUP_SLUICE_GATE_OPEN` decision only when a valid reading exceeds the threshold and its 10-second monotonic TTL has not expired. This is a software decision only; it does not operate a real gate.
 
 ## Requirements
 
 - Linux or Ubuntu (the project was developed and tested in Ubuntu).
-- Python 3.
-- Python packages listed in `requirements.txt`, if any are added later.
+- Python 3.12 or 3.14.
+- Dependencies from `requirements.txt` (`psutil` and `PyYAML`).
 
-The repository's current `scripts/start_demo.sh`, `scripts/setup.sh`, `scripts/preflight.sh`, and `requirements.txt` are empty placeholders. Use the manual launch command below rather than relying on those scripts.
+The startup scripts require Linux/WSL and Python 3.12 or 3.14. Setup creates
+the virtual environment, installs `requirements.txt`, initializes the SQLite
+schema, and verifies WAL mode.
 
 ## Run the demo
 
@@ -84,6 +86,12 @@ EDGE_DATABASE_PATH=/tmp/songdo_demo.db PYTHONPATH=src python3 -m edge.supervisor
 ```
 
 The mock receiver uses its own database at `data/upstream_receiver.db`.
+
+To create and integrity-check a SQLite backup under an exclusive `flock`:
+
+```bash
+PYTHONPATH=src python3 -m edge.backup
+```
 
 ### 2. Open the dashboard
 
@@ -115,6 +123,8 @@ The API listens locally on port `8000`.
 | Method | Endpoint | Purpose |
 |---|---|---|
 | `GET` | `/api/status` | Returns application and worker status, recent readings and decisions, and pending-event information. |
+| `GET` | `/health/live` | Confirms that the local API process is responding. |
+| `GET` | `/health/ready` | Returns readiness only when SQLite is available and all required worker heartbeats are fresh. Returns HTTP 503 while starting or unhealthy. |
 | `POST` | `/api/wan/offline` | Simulates a WAN outage. |
 | `POST` | `/api/wan/online` | Restores simulated WAN connectivity. |
 
@@ -126,6 +136,7 @@ The mock receiver listens on port `8001` and accepts event submissions at `/api/
 src/edge/
     SensorGen.py       Simulated sensor generator
     api_server.py     HTTP API and dashboard serving
+    backup.py         Flock-guarded online SQLite backup
     bounded_queue.py  Bounded IPC queue
     decision.py       Local decision rules
     ipc.py            Shared multiprocessing channels and events
@@ -144,20 +155,30 @@ sql/
     schema.sql        Database schema
 
 scripts/
-    preflight.sh      Placeholder
-    setup.sh          Placeholder
-    start_demo.sh     Placeholder
+    preflight.sh      Linux, Python, SQLite, and command checks
+    setup.sh          Virtual environment and database initialization
+    start_demo.sh     Preflight, setup, and supervisor launcher
 
 tests/
-    test_os_fundamentals.py
+    test_*.py         OS5 unit and integration checks
+
+scenarios/
+    run_all_scenarios.py  Run the complete OS5 test suite
 ```
 
 Additional project documentation is available in `document/README.md` and the other files under `document/`.
+
+## Validate OS5
+
+Run all unit and integration scenarios from the OS5 directory:
+
+```bash
+python3 scenarios/run_all_scenarios.py
+```
 
 ## Limitations
 
 - Sensor readings are simulated rather than collected from physical devices.
 - Decisions are recorded but do not control real equipment.
 - The upstream receiver is a local mock service.
-- The startup scripts and dependency file still need to be completed.
 - This is an educational demonstration, not a production-ready system.

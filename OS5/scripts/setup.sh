@@ -10,13 +10,17 @@ bash "$SCRIPT_DIR/preflight.sh"
 
 # Keep Python packages isolated from the system interpreter, then install
 # the versions declared by the repository.
-python3.12 -m venv "$PROJECT_ROOT/.venv"
+PYTHON_BIN=python3.12
+if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+	PYTHON_BIN=python3.14
+fi
+"$PYTHON_BIN" -m venv "$PROJECT_ROOT/.venv"
 "$PROJECT_ROOT/.venv/bin/python" -m pip install --upgrade pip
 "$PROJECT_ROOT/.venv/bin/python" -m pip install --requirement "$PROJECT_ROOT/requirements.txt"
 
 DB_PATH="$PROJECT_ROOT/data/songdo.db"
 SCHEMA_PATH="$PROJECT_ROOT/sql/schema.sql"
-# Create the data directory before SQLite opens the database file hello.
+# Create the data directory before SQLite opens the database file.
 mkdir -p "$PROJECT_ROOT/data"
 
 "$PROJECT_ROOT/.venv/bin/python" - "$DB_PATH" "$SCHEMA_PATH" <<'PY'

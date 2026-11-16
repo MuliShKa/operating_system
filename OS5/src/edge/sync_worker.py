@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -10,7 +11,10 @@ from urllib.request import Request, urlopen
 from edge import storage
 
 
-RECEIVER_URL = "http://127.0.0.1:8001/api/events"
+RECEIVER_URL = os.environ.get(
+    "EDGE_RECEIVER_URL",
+    "http://127.0.0.1:8001/api/events",
+)
 BATCH_SIZE = 50
 RETRY_INTERVAL_SECONDS = 2
 REQUEST_TIMEOUT_SECONDS = 3

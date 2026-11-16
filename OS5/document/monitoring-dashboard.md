@@ -13,8 +13,23 @@ the status of processes running on the OS project node.
 - Display the number of events waiting in the local outbox
 - Show recent sensor readings and local decisions
 
-The current implementation does not report CPU/RAM metrics or provide
-WAN-disconnect controls.
+The dashboard reports CPU/RAM metrics and provides controls for the simulated
+WAN connection.
+
+## OS5-1 liveness and readiness
+
+The local API exposes:
+
+- `GET /health/live` — confirms that the API process is responding.
+- `GET /health/ready` — returns readiness only when the SQLite schema is
+  available and every required worker has a fresh, running heartbeat.
+- `GET /api/status` — includes the same liveness and readiness summary for the
+  dashboard.
+
+The HealthMon worker records each required process every five seconds.
+Heartbeats older than 15 seconds are reported as stale. During startup, missing
+heartbeats are reported as `starting`, not as healthy. The dashboard displays
+the current liveness/readiness state and the checks preventing readiness.
 
 ## Original Development Plan
 1. Create a basic HTTP server.

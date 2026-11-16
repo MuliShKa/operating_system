@@ -1,4 +1,4 @@
-# Data models for sensor readings, edge decisions, and process health. TODO.
+# Data models for sensor readings, edge decisions, and process health.
 #
 # Each class has two text versions:
 # - __str__: short and readable, used by print(obj), str(obj) and f-strings.

@@ -17,6 +17,17 @@ def run_processor(channels: Any, state: Any) -> None:
         if event is None:
             continue
 
+        if event.sensor_id == "SLUICE_WATER_LEVEL_M":
+            try:
+                decision.validate_water_level(event.value)
+            except ValueError as error:
+                print(
+                    f"[Processor] Rejected water-level reading "
+                    f"{event.value!r}: {error}",
+                    flush=True,
+                )
+                continue
+
         event_id = str(uuid.uuid4())
         event_time = datetime.fromtimestamp(event.timestamp, timezone.utc).isoformat()
         payload = {

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -10,7 +11,12 @@ from typing import Any
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[2]
-RECEIVER_DATABASE = PROJECT_DIR / "data" / "upstream_receiver.db"
+RECEIVER_DATABASE = Path(
+    os.environ.get(
+        "EDGE_RECEIVER_DATABASE_PATH",
+        str(PROJECT_DIR / "data" / "upstream_receiver.db"),
+    )
+)
 
 
 def initialize_receiver_database() -> None:
@@ -49,8 +55,16 @@ def accept_event(event: dict[str, Any]) -> bool:
     return cursor.rowcount == 1
 
 
-def run_receiver(stop_event: Any, host: str = "127.0.0.1", port: int = 8001) -> None:
+def run_receiver(
+    stop_event: Any,
+    host: str | None = None,
+    port: int | None = None,
+) -> None:
     """Run the local HTTP endpoint used by the synchronization worker."""
+    host = host or os.environ.get("EDGE_RECEIVER_HOST", "127.0.0.1")
+    port = port if port is not None else int(
+        os.environ.get("EDGE_RECEIVER_PORT", "8001")
+    )
     initialize_receiver_database()
 
     class Handler(BaseHTTPRequestHandler):

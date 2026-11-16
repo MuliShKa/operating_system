@@ -4,7 +4,8 @@
 > concurrency demonstrations. The integrated demo shares a bounded event queue
 > and stop event between SensorGen and Processor; the Unix socket and priority
 > queue examples are not currently used by the running dashboard pipeline.
-> Worker auto-restart is not implemented.
+> The supervisor restarts a failed worker within a bounded retry window while
+> keeping the shared IPC channels.
 
 > **In one sentence:** the edge node is split into separate Linux processes.
 > This folder gives them safe ways to **send data**, **share flags** and
@@ -37,8 +38,9 @@ Python 3.12 · Linux · standard library IPC examples
 
 The node runs as **several processes**: SensorGen, Processor, HealthMon, API.
 Separate processes have independent memory, so they need explicit IPC to share
-data and stop signals. The current demo supervisor stops if a worker exits; it
-does not automatically restart that worker.
+data and stop signals. The current demo supervisor restarts a failed worker up
+to three times within a 60-second window, then stops the node if the worker
+continues failing.
 
 But each process has its **own virtual memory**. A Python variable in
 SensorGen does not exist in Processor. So we need **IPC** (Inter-Process
@@ -358,15 +360,17 @@ A deadlock needs **all four Coffman conditions**. Break one and it cannot happen
 | Circular wait | P1 → P2 → P1 | other fix: always take A before B |
 
 **Fix.** Wait **at most 0.2 s** for the second lock. If it fails: release the
-first lock, pause a **random** time (so both do not retry in lockstep forever:
-a *livelock*), try again.
+first lock, pause a **random** time (so both do not retry in lockstep), and
+retry up to 10 times. If retries are exhausted, the worker reports failure
+instead of looping indefinitely. The parent bounds terminate/kill/join and
+cleans up any process that started if the second worker fails to start.
 
 **Proof.**
 
 | Version | Result |
 |---|---|
-| Opposite lock order | **deadlocked**, 0 of 2 finished, killed after 1 s (then `join()` → no zombie) |
-| 0.2 s timeout | **2 of 2 finished** in about 0.3–0.4 s |
+| Opposite lock order | **deadlocked**, 0 of 2 finished, stopped after the 5 s demo deadline and reaped |
+| 0.2 s timeout | Both workers finish or report bounded failure; child processes are reaped |
 
 ---
 
@@ -382,15 +386,15 @@ PYTHONPATH=src python -m edge.race_demo
 # 80 processes, with lock:    counter = 80
 
 PYTHONPATH=src python -m edge.deadlock_demo
-# Opposite lock order:        {'deadlocked': True, 'finished_workers': 0, 'retries': 0, 'elapsed_s': 1.004}
-# With 0.2 s acquire timeout: {'deadlocked': False, 'finished_workers': 2, 'retries': 1, 'elapsed_s': 0.399}
+# Opposite lock order:        {'deadlocked': True, 'finished_workers': 0, 'failed_workers': 0, 'retries': 0, 'elapsed_s': 5.0}
+# With 0.2 s acquire timeout: {'deadlocked': False, 'finished_workers': 2, 'failed_workers': 0, 'retries': 1, 'elapsed_s': 0.399}
 
 PYTHONPATH=src python -m edge.priority_demo
 # One FIFO queue: alarms handled at positions [29, 59, 89, ..., 299]
 # PriorityQueue:  alarms handled at positions [0, 1, 2, ..., 9]
 
 python tests/test_os_fundamentals.py -v
-# Ran 19 tests ... OK
+# unittest reports the test count and pass/fail result
 ```
 
 ---
@@ -404,7 +408,7 @@ python tests/test_os_fundamentals.py -v
 | `TestShutdownSentinel` | a consumer handles all 200 items before `STOP`, then exits with code 0 |
 | `TestPriorityQueue` | alarms come out first, each lane stays capped, `STOP` waits for alarms |
 | `TestRaceCondition` | without lock < 80, with lock = 80 |
-| `TestDeadlock` | the naive version deadlocks, the timeout version always finishes |
+| `TestDeadlock` | the naive version is detected and reaped; retries are bounded and successful workers finish |
 | `TestUnixSocket` | answers across processes, survives a bad question, a silent client, a missing folder and an old socket file |
 | `TestIpcChannels` | the channels start in the right state (queue of 500, not stopped, WAN online) |
 

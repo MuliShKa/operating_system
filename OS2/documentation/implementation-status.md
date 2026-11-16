@@ -33,15 +33,16 @@ Latest recorded OS2 checks:
 - Scenarios OS2-1 through OS2-4 passed in a short acceptance run.
 - A dedicated 30-second OS2-5 run passed: **22 outage events** were
   acknowledged without loss or duplicate IDs.
+- On **2026-11-16**, the full **600-second OS2-5** outage run passed:
+  **420 outage events** were acknowledged without loss or duplicate IDs.
 - Compose configuration validation passed.
 - The map API and rendered dashboard map were inspected; the GeoJSON contains
   **390 features** and OSM attribution.
 
-The full ten-minute OS2-5 run is **not confirmed as passed**. Previous
-attempts did not produce a successful completion result: one did not observe
-the expected outage events, and another had its WAN state changed during the
-run. Do not claim ten-minute acceptance until a complete run reports
-`OS2-5 PASS`.
+The 600-second OS2-5 acceptance criterion is now confirmed. After the pass,
+the demo supervisor and workers did not exit in response to SIGTERM; the
+test process tree had to be force-stopped. Graceful shutdown after the
+full-duration run remains a follow-up and should be investigated separately.
 
 These results describe the project at the time of writing. Re-run relevant
 tests and scenarios after further changes.
@@ -78,8 +79,8 @@ tests and scenarios after further changes.
   do not expose it publicly.
 - Backup rotation/retention and an external backup destination are not
   configured.
-- The ten-minute acceptance run still needs to complete successfully and be
-  recorded.
+- The full-duration scenario's graceful demo shutdown needs investigation;
+  the acceptance result itself passed.
 
 ## 4. Map source and attribution
 

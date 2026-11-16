@@ -19,7 +19,11 @@ Processor consumes events from that queue. It assigns each event a unique ID, co
 HealthMon periodically writes a heartbeat to the database and updates the latest health-check time. The API serves the dashboard and provides a JSON status endpoint with worker statuses, process IDs, recent readings, decisions, and the pending-event count. It listens only on the local machine.
 
 ### Slide 5 — Process supervision
-Finally, `supervisor.py` connects these components. It creates shared communication channels, initializes the database before starting workers, records their status and process IDs, and monitors them. On Ctrl+C or SIGTERM, it requests a graceful shutdown, waits up to three seconds, then terminates and reaps any worker that is still running. If a worker fails unexpectedly, the supervisor stops the others and reports an error. Automatic worker restart is not implemented yet.
+Finally, `supervisor.py` connects these components. It creates shared communication channels, initializes the database before starting workers, records their status and process IDs, and monitors them. On Ctrl+C or SIGTERM, it requests a graceful shutdown, waits up to three seconds, then terminates or kills and reaps any worker that is still running. If a worker fails unexpectedly, the supervisor records its exit code and restarts only that worker, up to three times in a 60-second window. If the limit is exceeded, the supervisor stops the other workers and reports an error.
 
 ### Slide 6 — Summary
-The pending outbox is stored locally, but remote synchronization is not implemented yet. Together, these components demonstrate the full local data flow from setup to dashboard. Thank you for listening.
+While WAN is unavailable, the outbox keeps events locally. When connectivity
+returns, SyncWorker sends them to the local mock receiver, which deduplicates
+by event ID. The supervisor can restart a failed worker without recreating the
+shared IPC channels. This is an educational simulation; it does not control
+physical equipment. Thank you for listening.

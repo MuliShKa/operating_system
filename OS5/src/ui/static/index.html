@@ -71,12 +71,12 @@
         color: #166534;
     }
 
-    .stopped, .error, .alert {
+    .stopped, .error, .alert, .failed {
         background: #fee2e2;
         color: #991b1b;
     }
 
-    .unknown, .warning {
+    .unknown, .warning, .restarting, .starting {
         background: #fef3c7;
         color: #92400e;
     }
@@ -115,6 +115,18 @@ button:disabled {
     <h1>Songdo Edge Intelligence</h1>
     <p class="subtitle">Smart Sluice Gate — Live System Monitoring</p>
     <p id="connection">Connecting to edge node...</p>
+<section class="card">
+    <h2 class="section-title">Node Health</h2>
+    <p>
+        Liveness:
+        <span id="liveness-status" class="badge unknown">Checking...</span>
+    </p>
+    <p>
+        Readiness:
+        <span id="readiness-status" class="badge unknown">Checking...</span>
+    </p>
+    <p id="readiness-details" class="detail">Waiting for health checks...</p>
+</section>
 <section class="card">
     <h2 class="section-title">WAN Connection</h2>
     <p>
@@ -165,10 +177,12 @@ button:disabled {
                 <th>Status</th>
                 <th>CPU (%)</th>
                 <th>Memory (MB)</th>
+                <th>Restarts</th>
+                <th>Last exit code</th>
             </tr>
         </thead>
         <tbody id="workers">
-            <tr><td colspan="3" class="empty">Waiting for API data...</td></tr>
+            <tr><td colspan="7" class="empty">Waiting for API data...</td></tr>
         </tbody>
     </table>
 </section>
@@ -287,6 +301,35 @@ button:disabled {
 
             const data = await response.json();
             const wanStatus = document.getElementById("wan-status");
+            const health = data.health || {};
+            const liveness = health.liveness || {};
+            const readiness = health.readiness || {};
+
+            const livenessStatus = document.getElementById("liveness-status");
+            livenessStatus.textContent = liveness.status || "unknown";
+            livenessStatus.className =
+                `badge ${liveness.alive === true ? "running" : "stopped"}`;
+
+            const readinessStatus = document.getElementById("readiness-status");
+            readinessStatus.textContent = readiness.status || "unknown";
+            readinessStatus.className =
+                `badge ${readiness.ready === true ? "running" : "warning"}`;
+
+            const readinessDetails = document.getElementById("readiness-details");
+            const checks = readiness.checks || {};
+            const database = checks.database || {};
+            const workerChecks = checks.workers || {};
+            const unhealthyWorkers = Object.entries(workerChecks)
+                .filter(([, check]) => check.status !== "running")
+                .map(([name, check]) => `${name}: ${check.status}`);
+            const details = [];
+            if (database.status !== "ready") {
+                details.push(`Database: ${database.error || database.status || "unknown"}`);
+            }
+            details.push(...unhealthyWorkers);
+            readinessDetails.textContent = readiness.ready === true
+                ? "Database available; all worker heartbeats are fresh."
+                : (details.length ? details.join(" · ") : "Health checks pending.");
 
             if (data.wan_online === true) {
                 wanStatus.textContent = "WAN ONLINE";
@@ -341,7 +384,7 @@ button:disabled {
             workersBody.replaceChildren();
 
             if (workerList.length === 0) {
-                showMessage(workersBody, 3, "No worker data available");
+                showMessage(workersBody, 7, "No worker data available");
             } else {
                 for (const [name, worker] of workerList) {
                     const row = document.createElement("tr");
@@ -367,6 +410,8 @@ button:disabled {
                     row.appendChild(makeCell(
                         memory == null ? "—" : `${Number(memory).toFixed(2)} MB`
                     ));
+                    row.appendChild(makeCell(worker.restart_count ?? 0));
+                    row.appendChild(makeCell(worker.last_exit_code ?? "—"));
 
                     workersBody.appendChild(row);
                 }

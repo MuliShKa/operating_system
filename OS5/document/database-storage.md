@@ -12,10 +12,10 @@ sent.
 -   `sql/schema.sql` --- defines the database tables and indexes.
 -   `src/edge/storage.py` --- Python functions for initializing the
     database and storing/retrieving records.
--   `test_schema.py` --- checks that the schema can be executed and the
-    four application tables are created.
--   `test_storage.py` --- exercises the storage functions with a sample
-    high-water-level event.
+-   `src/edge/backup.py` --- creates an online SQLite backup while holding an
+    exclusive `flock`, then verifies the backup with `PRAGMA integrity_check`.
+-   `tests/` --- covers schema, storage, backup locking, worker recovery, and
+    the compound WAN/Processor failure scenario.
 
 ## Database tables
 
@@ -63,23 +63,16 @@ records and query events by time.
     and records the send time. It should only be called after the
     receiver confirms successful delivery.
 
-## How to test
+## How to validate
 
-From the project root, run:
+From the OS5 project root, run:
 
-``` powershell
-python test_schema.py
-python test_storage.py
+```bash
+python3 scenarios/run_all_scenarios.py
 ```
 
-The schema test should list these four tables: `decisions`, `events`,
-`outbox`, and `process_health`.
-
-The storage test uses a sample event with a water level of 2.9 m and a
-threshold of 2.8 m. On the first run, `New event created` should be
-`True`; on a repeat run with the same event ID, it should be `False`.
-Once the test marks the event as sent, the pending queue should be
-empty. The event itself remains in the database.
+The runner discovers and executes every OS5 `test_*.py` module, including the
+backup integrity/lock check and the offline outbox delivery test.
 
 ## Reliability notes and current limitations
 
@@ -89,20 +82,16 @@ empty. The event itself remains in the database.
     transaction, avoiding a state where only one of these two records is
     committed.
 -   The unique `event_id` prevents adding the same event twice to the
-    outbox. End-to-end duplicate protection also requires the
-    receiver/API to support idempotency.
--   WAL mode and the connection timeout help with local database access,
-    but they do not by themselves prove crash recovery or loss-free
-    delivery. These still need integration tests with `SyncWorker` and
-    the receiver.
--   The current `attempts` field is present in the schema, but
-    retry-attempt increments and retry/backoff behavior must be
-    implemented and tested as part of the sync workflow.
--   The team should confirm the event model, field names, timestamps,
-    and function signatures against `models.py`, `sync_worker.py`, and
-    the API before merging.
+    outbox. The receiver also has a primary key on `event_id`, so retries
+    do not create duplicate stored records.
+-   `SyncWorker` leaves events pending while WAN is offline, increments
+    attempts after delivery failures, and marks them sent only after the
+    receiver confirms acceptance.
+-   `create_backup()` uses SQLite's online backup API, a nonblocking lock
+    file, and an integrity check. A competing backup fails explicitly rather
+    than overwriting another backup.
 
-## Suggested integration contract for the team
+## Integrated data flow
 
 -   Sensor/Processor code can call `save_event(...)` to persist an event
     and queue it for sending.
@@ -113,5 +102,7 @@ empty. The event itself remains in the database.
     receiver, and call `mark_event_sent(...)` only after successful
     confirmation.
 
-These interfaces are the current database implementation proposal and
-may need small adjustments when the other roles are integrated.
+These interfaces are integrated with the sensor processor, supervisor,
+receiver, and synchronization worker. The receiver remains a local mock
+service; backups and outbox delivery are for the educational demo, not a
+production disaster-recovery strategy.

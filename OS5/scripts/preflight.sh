@@ -13,12 +13,15 @@ if [[ -z "${BASH_VERSION:-}" ]]; then
 fi
 
 # Check Python version and all tools used by the project.
-PYTHON_BIN=python3
-if command -v python3.12 >/dev/null 2>&1; then
-	PYTHON_BIN=python3.12
-fi
+PYTHON_BIN=
+for candidate in python3.12 python3.14 python3; do
+	if command -v "$candidate" >/dev/null 2>&1; then
+		PYTHON_BIN="$candidate"
+		break
+	fi
+done
 
-if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+if [[ -z "$PYTHON_BIN" ]]; then
 	failures+=("Python 3.12 or 3.14 (python3)")
 elif ! "$PYTHON_BIN" -c 'import sys; raise SystemExit(0 if sys.version_info[:2] in {(3, 12), (3, 14)} else 1)' >/dev/null 2>&1; then
 	failures+=("Python 3.12 or 3.14 ($PYTHON_BIN reports $($PYTHON_BIN --version 2>&1))")

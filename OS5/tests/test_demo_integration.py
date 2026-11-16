@@ -5,12 +5,13 @@ import tempfile
 import unittest
 from contextlib import closing
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from edge import storage
 from edge.ipc import IpcChannels
-from edge.models import SensorEvent
+from edge.models import EdgeDecision, SensorEvent
 from edge.processor import run_processor
 
 
@@ -25,6 +26,14 @@ class TestDemoIntegration(unittest.TestCase):
                 context = multiprocessing.get_context("spawn")
                 channels = IpcChannels(context)
                 state = {}
+                channels.sensor_events.put(
+                    SensorEvent(
+                        "SLUICE_WATER_LEVEL_M",
+                        "not a number",
+                        "m",
+                        1_798_000_000,
+                    )
+                )
                 channels.sensor_events.put(
                     SensorEvent("SLUICE_WATER_LEVEL_M", 3.1, "m", 1_798_000_000)
                 )
@@ -56,6 +65,42 @@ class TestDemoIntegration(unittest.TestCase):
                     "BACKUP_SLUICE_GATE_OPEN",
                 )
                 self.assertEqual(state["pending_events"], 2)
+            finally:
+                storage.DATABASE_PATH = original_database_path
+
+    def test_processor_does_not_store_an_expired_gate_command(self):
+        original_database_path = storage.DATABASE_PATH
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            try:
+                storage.DATABASE_PATH = Path(temporary_directory) / "demo.db"
+                storage.initialize_database()
+
+                context = multiprocessing.get_context("spawn")
+                channels = IpcChannels(context)
+                state = {}
+                channels.sensor_events.put(
+                    SensorEvent("SLUICE_WATER_LEVEL_M", 3.1, "m", 1_798_000_000)
+                )
+                channels.stop.set()
+                expired_decision = EdgeDecision(
+                    "BACKUP_SLUICE_GATE_OPEN",
+                    3.1,
+                    "expired test command",
+                    1_798_000_000,
+                )
+
+                with patch(
+                    "edge.processor.decision.make_decision",
+                    return_value=(expired_decision, -1.0),
+                ):
+                    run_processor(channels, state)
+
+                with closing(sqlite3.connect(storage.DATABASE_PATH)) as connection:
+                    decision_count = connection.execute(
+                        "SELECT COUNT(*) FROM decisions"
+                    ).fetchone()[0]
+
+                self.assertEqual(decision_count, 0)
             finally:
                 storage.DATABASE_PATH = original_database_path
 

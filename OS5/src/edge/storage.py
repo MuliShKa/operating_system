@@ -121,6 +121,46 @@ def save_process_health(process_name, status, details=None):
         )
 
 
+def check_database_ready():
+    """Raise a SQLite error if the database is unavailable or missing required tables."""
+    required_tables = {"events", "decisions", "process_health", "outbox"}
+    with _managed_connection() as connection:
+        tables = {
+            row["name"]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            )
+        }
+        missing_tables = required_tables - tables
+        if missing_tables:
+            raise sqlite3.DatabaseError(
+                f"required tables are missing: {', '.join(sorted(missing_tables))}"
+            )
+        connection.execute("SELECT 1").fetchone()
+
+
+def get_latest_process_health():
+    """Return the most recent persisted health check for each process."""
+    with _managed_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT health.process_name, health.status, health.details,
+                   health.checked_at,
+                   CAST(strftime('%s', health.checked_at) AS REAL)
+                       AS checked_at_epoch
+            FROM process_health AS health
+            JOIN (
+                SELECT process_name, MAX(health_id) AS health_id
+                FROM process_health
+                GROUP BY process_name
+            ) AS latest
+              ON latest.health_id = health.health_id
+            ORDER BY health.process_name
+            """
+        ).fetchall()
+    return {row["process_name"]: dict(row) for row in rows}
+
+
 def get_pending_events(limit=100):
     """Return events waiting to be sent to the server."""
     if limit < 1:

@@ -5,7 +5,7 @@
 > **ask each other questions**, and proves with demos and tests that they do
 > not lose data, corrupt counters or freeze.
 
-Python 3.12 · Linux · standard library only · 19 automated tests
+Python 3.12 or 3.14 · Linux · OS5 checks run with the scenario runner
 
 ---
 

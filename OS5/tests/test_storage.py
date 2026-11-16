@@ -1,52 +1,72 @@
+from contextlib import closing
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
 
-from src.edge.storage import (
-    initialize_database,
-    save_event,
-    save_decision,
-    save_process_health,
-    get_pending_events,
-    mark_event_sent,
-    get_connection,
-)
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-initialize_database()
+from edge import storage
 
-event_id = "water_high_test_001"
 
-created = save_event(
-    event_id=event_id,
-    event_type="WATER_LEVEL_HIGH",
-    event_time="2026-10-21T12:00:00",
-    payload={
-        "water_level": 2.9,
-        "threshold": 2.8,
-        "command": "BACKUP_SLUICE_GATE_OPEN",
-    },
-)
+class TestOutboxStorage(unittest.TestCase):
+    def test_event_outbox_is_atomic_idempotent_and_marked_sent(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            database_path = Path(temporary_directory) / "storage.db"
+            with patch.object(storage, "DATABASE_PATH", database_path):
+                storage.initialize_database()
+                event = {
+                    "water_level": 2.9,
+                    "threshold": 2.8,
+                    "command": "BACKUP_SLUICE_GATE_OPEN",
+                }
 
-print("New event created:", created)
+                self.assertTrue(
+                    storage.save_event(
+                        "event-1",
+                        "SLUICE_WATER_LEVEL_M",
+                        "2026-10-21T12:00:00+00:00",
+                        event,
+                    )
+                )
+                self.assertFalse(
+                    storage.save_event(
+                        "event-1",
+                        "SLUICE_WATER_LEVEL_M",
+                        "2026-10-21T12:00:00+00:00",
+                        event,
+                    )
+                )
+                storage.save_decision(
+                    "event-1",
+                    "BACKUP_SLUICE_GATE_OPEN",
+                    "Water level exceeded 2.8 metres",
+                )
+                storage.save_process_health("Processor", "running", '{"pid": 1}')
 
-if created:
-    save_decision(
-        event_id,
-        "BACKUP_SLUICE_GATE_OPEN",
-        "Water level exceeded 2.8 metres",
-    )
+                pending = storage.get_pending_events()
+                self.assertEqual(len(pending), 1)
+                self.assertEqual(pending[0]["event_id"], "event-1")
+                self.assertTrue(storage.mark_event_sent("event-1"))
+                self.assertFalse(storage.mark_event_sent("event-1"))
+                self.assertEqual(storage.get_pending_event_count(), 0)
 
-    save_process_health(
-        "SensorGen",
-        "healthy",
-        "Test health check",
-    )
+                with closing(storage.get_connection()) as connection:
+                    event_count = connection.execute(
+                        "SELECT COUNT(*) FROM events"
+                    ).fetchone()[0]
+                    outbox_status = connection.execute(
+                        "SELECT status FROM outbox WHERE event_id = 'event-1'"
+                    ).fetchone()["status"]
+                    decision_count = connection.execute(
+                        "SELECT COUNT(*) FROM decisions"
+                    ).fetchone()[0]
 
-print("Pending events:", get_pending_events())
+        self.assertEqual(event_count, 1)
+        self.assertEqual(outbox_status, "sent")
+        self.assertEqual(decision_count, 1)
 
-print("Marked sent:", mark_event_sent(event_id))
-print("Pending after sending:", get_pending_events())
 
-with get_connection() as connection:
-    total = connection.execute(
-        "SELECT COUNT(*) FROM events"
-    ).fetchone()[0]
-
-print("Total events in database:", total)
+if __name__ == "__main__":
+    unittest.main()
