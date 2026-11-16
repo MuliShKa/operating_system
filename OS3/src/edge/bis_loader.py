@@ -9,6 +9,9 @@ Real open data (data.go.kr, Incheon), two CSV files used together:
   - 15048265 "버스노선별 정류장 현황" (the dataset named in the handbook): which
     route stops where (노선번호 per 정류소아이디), but NO coordinates. It is used
     only to attach route numbers to the stops of the first file.
+In the real 15074309 file the 위도 (latitude) and 경도 (longitude) columns are SWAPPED:
+위도 holds values like 126.67 and 경도 holds 37.45. A row whose "latitude" is above 90 but
+whose "longitude" is a valid latitude is read swapped and counted in swapped_rows.
 Headers are compared ignoring case and ALL whitespace ("정류소 명" == "정류소명").
 COLUMN_ALIASES also accepts English names, so a hand-made CSV works too.
 """
@@ -53,6 +56,7 @@ class BusContext:
     is_sample: bool = False       # True when the synthetic sample file was used
     total_stops: int = 0          # valid stops found in the file
     skipped_rows: int = 0         # rows ignored because they were invalid
+    swapped_rows: int = 0         # rows whose latitude/longitude columns were swapped in the file
     radius_m: float = 0.0
     routes_source: str = "none"   # stops-by-route file merged in, or "none"
     stops_with_routes: int = 0    # nearby stops that got at least one route number
@@ -73,6 +77,7 @@ class BusContext:
             "is_sample": self.is_sample,
             "total_stops": self.total_stops,
             "skipped_rows": self.skipped_rows,
+            "swapped_rows": self.swapped_rows,
             "radius_m": self.radius_m,
             "routes_source": Path(self.routes_source).name if self.routes_source != "none" else "none",
             "stops_with_routes": self.stops_with_routes,
@@ -135,6 +140,12 @@ def load_bus_stops(path: str | Path) -> tuple[list[BusStop], int]:
     Raises FileNotFoundError / ValueError if the file is missing or has no
     usable id and coordinate columns.
     """
+    stops, skipped, _swapped = _load_bus_stops(path)
+    return stops, skipped
+
+
+def _load_bus_stops(path: str | Path) -> tuple[list[BusStop], int, int]:
+    """Same as load_bus_stops, plus the number of rows whose lat/lon were swapped."""
     path = Path(path)
     text = _read_text(path)
     reader = csv.DictReader(text.splitlines())
@@ -148,6 +159,7 @@ def load_bus_stops(path: str | Path) -> tuple[list[BusStop], int]:
 
     stops: list[BusStop] = []
     skipped = 0
+    swapped = 0
     for row in reader:
         try:
             stop_id = (row[mapping["stop_id"]] or "").strip()
@@ -156,6 +168,9 @@ def load_bus_stops(path: str | Path) -> tuple[list[BusStop], int]:
         except (TypeError, ValueError):
             skipped += 1
             continue
+        if abs(latitude) > 90 and abs(longitude) <= 90:
+            latitude, longitude = longitude, latitude   # swapped columns (see module docstring)
+            swapped += 1
         if not stop_id or not (-90 <= latitude <= 90) or not (-180 <= longitude <= 180):
             skipped += 1
             continue
@@ -168,7 +183,7 @@ def load_bus_stops(path: str | Path) -> tuple[list[BusStop], int]:
         routes = tuple(part.strip() for part in routes_text.replace(",", ";").split(";") if part.strip())
         stops.append(BusStop(stop_id, name, latitude, longitude, routes))
 
-    return stops, skipped
+    return stops, skipped, swapped
 
 
 def load_route_index(path: str | Path) -> dict[str, tuple[str, ...]]:
@@ -231,7 +246,7 @@ def build_context(
         if not path.is_file():
             continue
         try:
-            stops, skipped = load_bus_stops(path)
+            stops, skipped, swapped = _load_bus_stops(path)
         except (OSError, ValueError):
             continue
         nearby = stops_near(stops, latitude, longitude, radius_m)
@@ -252,6 +267,7 @@ def build_context(
             is_sample=is_sample,
             total_stops=len(stops),
             skipped_rows=skipped,
+            swapped_rows=swapped,
             radius_m=radius_m,
             routes_source=routes_source,
             stops_with_routes=sum(1 for stop, _ in nearby if stop.routes),

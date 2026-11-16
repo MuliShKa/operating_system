@@ -83,7 +83,7 @@ def main() -> int:
     print(f"Bus context: {context.get('nearby_count')} stop(s) within {context.get('radius_m')} m "
           f"of the node, source={context.get('source')} "
           f"({'SYNTHETIC SAMPLE' if context.get('is_sample') else 'cached BIS data'}), "
-          f"skipped rows={context.get('skipped_rows')}, routes file={context.get('routes_source')}")
+          f"skipped rows={context.get('skipped_rows')}, swapped lat/lon rows={context.get('swapped_rows')}, routes file={context.get('routes_source')}")
     print(f"Stored events: {stored}")
     for reason in surge_reasons[:2]:
         print(f"  decision reason: {reason}")

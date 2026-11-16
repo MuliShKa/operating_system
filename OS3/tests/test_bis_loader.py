@@ -153,5 +153,24 @@ class TestRealFormat(unittest.TestCase):
         self.assertEqual(context.routes_source, "none")
 
 
+class TestSwappedCoordinates(unittest.TestCase):
+    """The real 15074309 file has 위도/경도 swapped (위도 = 126.x, 경도 = 37.x)."""
+
+    def test_swapped_columns_are_read_correctly(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "stops.csv"
+            path.write_text(
+                "기준 일자,정류소 명,정류소 번호,정류소 ID,권역,행정동 명,X 좌표,위도,Y 좌표,경도\n"
+                "20260228,테스트A,1,100,x,x,0,126.6563,0,37.3823\n"      # swapped like the real file
+                "20260228,테스트B,2,101,x,x,0,37.3812,0,126.6548\n",       # normal order
+                encoding="utf-8",
+            )
+            context = bis_loader.build_context(NODE_LAT, NODE_LON, 200, path)
+            self.assertEqual(context.total_stops, 2)
+            self.assertEqual(context.swapped_rows, 1)
+            self.assertEqual(context.skipped_rows, 0)
+            self.assertEqual(len(context.nearby), 2)
+
+
 if __name__ == "__main__":
     unittest.main()
