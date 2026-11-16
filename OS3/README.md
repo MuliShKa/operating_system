@@ -69,7 +69,7 @@ PYTHONPATH=src python3 -m edge.supervisor
 ## Tests
 
 ```bash
-python3 -m unittest discover -s tests             # All test (52)
+python3 -m unittest discover -s tests             # all tests (52)
 python3 tests/test_os_fundamentals.py -v          # queues, IPC, race, deadlock
 python3 tests/test_backup.py -v                   # online backup, retention, flock
 python3 tests/test_surge_rule.py -v               # rule, TTL from reading time, version-guarded sign
@@ -85,7 +85,7 @@ PYTHONPATH=src python3 tests/test_demo_integration.py -v
 | OS3-2 Priority queue | Implemented and tested |
 | OS3-3 Overload / drop-oldest | Implemented and tested |
 | OS3-4 Transactional sign state | Implemented and tested |
-| OS3-5 Offline sign dispatch and replay | Implemented: `scenarios/os3_5_offline_demo.py` |
+| OS3-5 Offline sign dispatch and replay | Implemented and verified with the official 10-minute run (`document/results/`): `scenarios/os3_5_offline_demo.py` |
 
 ## Scenario scripts
 
@@ -135,6 +135,14 @@ systemctl --user list-timers 'songdo-backup@*'
 - **Container**: `docker compose -f container/compose.yaml up --build`, then
   `docker inspect --format '{{.State.Health.Status}}' songdo-edge-os3` (healthy when the API
   answers and every worker is running). Data lives in a volume; runs as an unprivileged user.
+
+## Documentation and evidence
+
+- `document/architecture.md`: technical report (processes, IPC, design decisions, limits).
+- `document/journal/errors.md`: errors and surprises found while building the node.
+- `document/defense-guide.md`: study notes for the oral defense.
+- `document/results/`: reports of the official runs (10-minute offline demo for OS3-5,
+  and OS3-1 to OS3-4), each with its `report.json`.
 
 ## Not implemented yet
 

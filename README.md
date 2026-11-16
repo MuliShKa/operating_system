@@ -13,14 +13,14 @@
 |---|---|---|
 | 🏢 **OS1** | Smart building gateway: occupancy and CO₂ sensors, with local HVAC logic | 🧩 Folder scaffold; no working application implementation yet |
 | 🤖 **OS2** | Robot edge controller: obstacle distance, emergency stop, and offline operation | ✅ Simulation implemented; [detailed README](OS2/README.md) |
-| 🚦 **OS3** | Autonomous mobility node: traffic flow and local speed-limit control | 🧩 Folder scaffold; no working application implementation yet |
+| 🚦 **OS3** | Autonomous mobility node: pedestrian-aware variable speed sign, bus stop context, and offline operation | ✅ Educational simulation implemented and tested; [detailed README](OS3/README.md) |
 | 🌫️ **OS4** | IoT gateway: air quality and noise monitoring, with local processing | 🧩 Folder scaffold; no working application implementation yet |
 | 🌊 **OS5** | Fault-tolerant smart-city node: water level, power, local decisions, and event delivery after connectivity returns | ✅ Educational simulation available; [project README](OS5/README.md) |
 
 The OS1–OS5 names and scenarios reflect the team mini-projects described in the
 course materials. The status above describes what is actually present in the
-repository: OS1, OS3, and OS4 currently contain only directory scaffolds, not
-completed applications.
+repository: projects marked 🧩 contain only directory scaffolds, not completed
+applications.
 
 ## 🔎 What each project means
 
@@ -55,16 +55,24 @@ without depending on internet connectivity.
 
 ### 🚦 OS3 — Autonomous Mobility Edge Node
 
-The **autonomous mobility node** is intended to process road conditions locally
-at an intersection.
+The **autonomous mobility node** processes road conditions locally at an
+intersection.
 
-- **Input:** vehicle speeds and pedestrian counts at a crosswalk.
-- **Goal:** demonstrate a local decision that can operate near the road without
-  waiting for a remote server.
-- **Intended output:** a recommendation or command for a variable speed-limit
-  sign.
-- **Status:** `OS3/` currently contains only a directory structure; its working
-  logic has not yet been implemented.
+- **Input:** simulated vehicle speeds and pedestrian counts at a crosswalk, plus
+  cached Incheon bus stop context.
+- **Goal:** keep deciding when the WAN is cut. A pedestrian surge lowers the
+  variable speed sign to 30 km/h with no remote server involved.
+- **Output:** a sign command that expires 15 s after the sensor reading; a
+  separate Actuator rejects stale commands. In this version it does not control a
+  real sign.
+- **Features:** priority and bounded queues (drop-oldest), version-guarded SQLite
+  state, an outbox that delivers events after a simulated WAN cut with an event
+  conservation check, systemd units, a `flock`-guarded backup, a Docker image,
+  and a script for each scenario (OS3-1 to OS3-5).
+- **Status:** an educational simulation is implemented, with an API, dashboard,
+  tests, official run reports, and technical documentation.
+
+➡️ Setup, tests and scenarios: [OS3/README.md](OS3/README.md).
 
 ### 🌫️ OS4 — IoT Edge Gateway
 
@@ -130,8 +138,9 @@ local data and backups.
 1. Choose a project from the table above.
 2. Open its README and follow that project's requirements and run commands.
 3. **OS2** requires Linux/WSL2; see the [OS2 README](OS2/README.md).
-4. For **OS5**, start with the [OS5 README](OS5/README.md).
-5. Do not use this code to control physical devices: sensors, receivers, and
+4. For **OS3**, use Linux/WSL2 and follow the [OS3 README](OS3/README.md).
+5. For **OS5**, start with the [OS5 README](OS5/README.md).
+6. Do not use this code to control physical devices: sensors, receivers, and
    actuators in these demonstrations are software simulations.
 
 ### 🏷️ Status legend
