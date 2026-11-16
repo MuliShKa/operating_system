@@ -1,0 +1,71 @@
+{
+  "scenario": "OS3-5",
+  "passed": true,
+  "checks": [
+    {
+      "status": "PASS",
+      "name": "online delivery works before the cut",
+      "detail": "receiver is receiving events while the WAN is online"
+    },
+    {
+      "status": "PASS",
+      "name": "the WAN stayed cut for the whole window",
+      "detail": "no one restored the WAN during the outage"
+    },
+    {
+      "status": "PASS",
+      "name": "every worker kept running during the outage",
+      "detail": "7/7 workers running at every sample"
+    },
+    {
+      "status": "PASS",
+      "name": "local processing continued (sensing + storage)",
+      "detail": "1196 events stored while offline (about 1200 expected)"
+    },
+    {
+      "status": "PASS",
+      "name": "nothing was delivered while offline",
+      "detail": "receiver count 2 -> 2"
+    },
+    {
+      "status": "PASS",
+      "name": "outbox accumulated every offline event",
+      "detail": "pending 4 -> 1200 (+1196) for 1196 new events"
+    },
+    {
+      "status": "PASS",
+      "name": "local decisions continued (speed sign)",
+      "detail": "59 sign decisions recorded while offline"
+    },
+    {
+      "status": "PASS",
+      "name": "backlog drained after reconnect",
+      "detail": "pending 1200 -> 2 in 18 s (live tail of up to 6 events is normal: new readings keep arriving)"
+    },
+    {
+      "status": "PASS",
+      "name": "receiver ignores a replayed event (idempotent)",
+      "detail": "replay answered duplicate=True, receiver count 1236 -> 1236"
+    },
+    {
+      "status": "PASS",
+      "name": "no event lost locally",
+      "detail": "1238 events stored, 1238 queued in the outbox, 0 missing"
+    },
+    {
+      "status": "PASS",
+      "name": "everything marked 'sent' really reached the receiver",
+      "detail": "1238 sent, 0 not found at the receiver"
+    },
+    {
+      "status": "PASS",
+      "name": "receiver holds nothing the node did not produce",
+      "detail": "1238 at the receiver, 0 unknown IDs"
+    },
+    {
+      "status": "PASS",
+      "name": "conservation: events = delivered + still pending",
+      "detail": "1238 events = 1238 delivered + 0 pending (pending ones are the live tail and will be sent on the next run)"
+    }
+  ]
+}

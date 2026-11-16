@@ -1,0 +1,54 @@
+{
+  "scenario": "OS3-2",
+  "items": 300,
+  "alarm_every": 30,
+  "fifo_positions": [
+    29,
+    59,
+    89,
+    119,
+    149,
+    179,
+    209,
+    239,
+    269,
+    299
+  ],
+  "priority_positions": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+  ],
+  "average_wait_fifo": 164.0,
+  "average_wait_priority": 4.5,
+  "lane_stats_after_flood": {
+    "urgent": {
+      "size": 500,
+      "maxsize": 500,
+      "put_count": 2000,
+      "dropped_count": 1500
+    },
+    "normal": {
+      "size": 500,
+      "maxsize": 500,
+      "put_count": 2000,
+      "dropped_count": 1500
+    }
+  },
+  "checks": {
+    "FIFO: every alarm waits behind the logs queued before it": true,
+    "PriorityQueue: alarms are handled first (positions 0..n-1)": true,
+    "every alarm is handled earlier with priority than with FIFO": true,
+    "urgent lane stays bounded at 500": true,
+    "normal lane stays bounded at 500": true,
+    "overflow is counted, not silently lost (dropped = put - 500, per lane)": true
+  },
+  "known_cost": "starvation of normal items while alarms keep coming (fix: aging)"
+}

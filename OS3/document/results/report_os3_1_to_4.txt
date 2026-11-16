@@ -1,0 +1,61 @@
+
+===== os3_1 =====
+Observing the node for 40 s with the WAN cut ...
+Bus context: 2 stop(s) within 200.0 m of the node, source=bis_stops_SAMPLE_synthetic.csv (SYNTHETIC SAMPLE)
+Stored events: {'PED_CROSSWALK_COUNT': 46, 'RADAR_SPEED': 46}
+  decision reason: Pedestrian surge: 30 >= 15; nearest bus stop: SAMPLE stop A (synthetic - not real) (43 m)
+  [PASS] bus stops were loaded from a local cached file
+  [PASS] at least one stop is near the intersection
+  [PASS] no row of the cache file was silently dropped
+  [PASS] vehicle speed telemetry (RADAR_SPEED) is stored
+  [PASS] pedestrian counts (PED_CROSSWALK_COUNT) are stored
+  [PASS] bus context still served while the WAN is cut
+  [PASS] readings kept arriving while the WAN was cut
+  [PASS] a pedestrian surge decision names the nearest bus stop (correlation)
+RESULT: ALL CHECKS PASSED
+Report: /home/cristian/Escritorio/operating_system/OS3/data/runs/os3_1-20261116-133018/report.json
+
+===== os3_2 =====
+  FIFO queue     : alarms handled at positions [29, 59, 89, 119, 149, 179, 209, 239, 269, 299]
+  PriorityQueue  : alarms handled at positions [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+  average items handled before an alarm: FIFO 164, priority 4.5
+  [PASS] FIFO: every alarm waits behind the logs queued before it
+  [PASS] PriorityQueue: alarms are handled first (positions 0..n-1)
+  [PASS] every alarm is handled earlier with priority than with FIFO
+  [PASS] urgent lane stays bounded at 500
+  [PASS] normal lane stays bounded at 500
+  [PASS] overflow is counted, not silently lost (dropped = put - 500, per lane)
+RESULT: ALL CHECKS PASSED
+Report: /home/cristian/Escritorio/operating_system/OS3/data/runs/os3_2-20261116-133018/report.json
+
+===== os3_3 =====
+  20000 items put by 4 producers in 1.3 s
+  received=1054 dropped=18946 max queue size seen=500
+  [PASS] queue size never exceeded 500
+  [PASS] the flood really overloaded the queue (items were dropped)
+  [PASS] every put was counted
+  [PASS] nothing lost without being counted (received + dropped = put)
+  [PASS] items of each producer stay in order (FIFO)
+  [PASS] single producer, no consumer: exactly the newest 500 items survive
+  [PASS] every producer exited cleanly (joined, exit code 0)
+RESULT: ALL CHECKS PASSED
+Report: /home/cristian/Escritorio/operating_system/OS3/data/runs/os3_3-20261116-133019/report.json
+
+===== os3_4 =====
+  writes ok=800 rejected(stale)=56 final={'speed_limit_kmh': 50, 'version': 800, 'updated_at': '2026-11-16 04:30:50'} reads=223723 torn=0
+  [PASS] every writer completed its writes
+  [PASS] final version == successful writes (no lost update)
+  [PASS] final state matches the version parity
+  [PASS] readers saw 0 torn states
+  [PASS] stale writers were rejected, not applied (contention happened)
+  [PASS] database is in WAL mode
+  [PASS] all processes exited cleanly
+RESULT: ALL CHECKS PASSED
+Report: /home/cristian/Escritorio/operating_system/OS3/data/runs/os3_4-20261116-133050/report.json
+
+===== SUMMARY =====
+  [PASS] os3_1  (47 s)
+  [PASS] os3_2  (0 s)
+  [PASS] os3_3  (1 s)
+  [PASS] os3_4  (31 s)
+OVERALL: ALL SCENARIOS PASSED

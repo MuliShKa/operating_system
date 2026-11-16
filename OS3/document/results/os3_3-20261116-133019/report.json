@@ -1,0 +1,20 @@
+{
+  "scenario": "OS3-3",
+  "producers": 4,
+  "items_per_producer": 5000,
+  "maxsize": 500,
+  "put": 20000,
+  "received": 1054,
+  "dropped": 18946,
+  "max_queue_size_seen": 500,
+  "elapsed_s": 1.28,
+  "checks": {
+    "queue size never exceeded 500": true,
+    "the flood really overloaded the queue (items were dropped)": true,
+    "every put was counted": true,
+    "nothing lost without being counted (received + dropped = put)": true,
+    "items of each producer stay in order (FIFO)": true,
+    "single producer, no consumer: exactly the newest 500 items survive": true,
+    "every producer exited cleanly (joined, exit code 0)": true
+  }
+}

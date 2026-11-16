@@ -1,0 +1,24 @@
+{
+  "scenario": "OS3-4",
+  "writers": 4,
+  "readers": 2,
+  "writes_total": 800,
+  "rejected": 33,
+  "reads": 14251,
+  "torn_reads": 0,
+  "final_state": {
+    "speed_limit_kmh": 50,
+    "version": 800,
+    "updated_at": "2026-11-15 07:37:42"
+  },
+  "journal_mode": "wal",
+  "checks": {
+    "every writer completed its writes": true,
+    "final version == successful writes (no lost update)": true,
+    "final state matches the version parity": true,
+    "readers saw 0 torn states": true,
+    "stale writers were rejected, not applied (contention happened)": true,
+    "database is in WAL mode": true,
+    "all processes exited cleanly": true
+  }
+}

@@ -1,0 +1,100 @@
+Starting node (throwaway databases in /tmp/tmpt_n8m3zr) ...
+
+>>> WAN CUT for 600 s
+  t=    0s  events=    6  pending=    4  receiver=    2  sign=50 km/h
+  t=   10s  events=   26  pending=   24  receiver=    2  sign=50 km/h
+  t=   20s  events=   46  pending=   44  receiver=    2  sign=50 km/h
+  t=   31s  events=   66  pending=   64  receiver=    2  sign=30 km/h
+  t=   41s  events=   86  pending=   84  receiver=    2  sign=30 km/h
+  t=   51s  events=  106  pending=  104  receiver=    2  sign=30 km/h
+  t=   61s  events=  126  pending=  124  receiver=    2  sign=30 km/h
+  t=   71s  events=  146  pending=  144  receiver=    2  sign=30 km/h
+  t=   81s  events=  166  pending=  164  receiver=    2  sign=30 km/h
+  t=   91s  events=  186  pending=  184  receiver=    2  sign=30 km/h
+  t=  100s  events=  205  pending=  203  receiver=    2  sign=30 km/h
+  t=  110s  events=  226  pending=  224  receiver=    2  sign=30 km/h
+  t=  120s  events=  246  pending=  244  receiver=    2  sign=30 km/h
+  t=  131s  events=  266  pending=  264  receiver=    2  sign=30 km/h
+  t=  141s  events=  286  pending=  284  receiver=    2  sign=30 km/h
+  t=  151s  events=  306  pending=  304  receiver=    2  sign=30 km/h
+  t=  161s  events=  326  pending=  324  receiver=    2  sign=30 km/h
+  t=  171s  events=  346  pending=  344  receiver=    2  sign=30 km/h
+  t=  181s  events=  366  pending=  364  receiver=    2  sign=30 km/h
+  t=  190s  events=  384  pending=  382  receiver=    2  sign=30 km/h
+  t=  200s  events=  404  pending=  402  receiver=    2  sign=30 km/h
+  t=  210s  events=  424  pending=  422  receiver=    2  sign=30 km/h
+  t=  220s  events=  444  pending=  442  receiver=    2  sign=30 km/h
+  t=  230s  events=  464  pending=  462  receiver=    2  sign=30 km/h
+  t=  240s  events=  484  pending=  482  receiver=    2  sign=30 km/h
+  t=  250s  events=  504  pending=  502  receiver=    2  sign=30 km/h
+  t=  261s  events=  524  pending=  522  receiver=    2  sign=30 km/h
+  t=  271s  events=  544  pending=  542  receiver=    2  sign=30 km/h
+  t=  281s  events=  564  pending=  562  receiver=    2  sign=30 km/h
+  t=  291s  events=  584  pending=  582  receiver=    2  sign=30 km/h
+  t=  301s  events=  606  pending=  604  receiver=    2  sign=30 km/h
+  t=  311s  events=  626  pending=  624  receiver=    2  sign=30 km/h
+  t=  320s  events=  644  pending=  642  receiver=    2  sign=30 km/h
+  t=  331s  events=  664  pending=  662  receiver=    2  sign=30 km/h
+  t=  341s  events=  685  pending=  683  receiver=    2  sign=30 km/h
+  t=  350s  events=  702  pending=  700  receiver=    2  sign=30 km/h
+  t=  360s  events=  724  pending=  722  receiver=    2  sign=30 km/h
+  t=  370s  events=  744  pending=  742  receiver=    2  sign=30 km/h
+  t=  380s  events=  764  pending=  762  receiver=    2  sign=30 km/h
+  t=  390s  events=  784  pending=  782  receiver=    2  sign=30 km/h
+  t=  400s  events=  804  pending=  802  receiver=    2  sign=30 km/h
+  t=  410s  events=  824  pending=  822  receiver=    2  sign=30 km/h
+  t=  420s  events=  844  pending=  842  receiver=    2  sign=30 km/h
+  t=  431s  events=  864  pending=  862  receiver=    2  sign=30 km/h
+  t=  441s  events=  884  pending=  882  receiver=    2  sign=30 km/h
+  t=  451s  events=  904  pending=  902  receiver=    2  sign=30 km/h
+  t=  461s  events=  924  pending=  922  receiver=    2  sign=30 km/h
+  t=  471s  events=  944  pending=  942  receiver=    2  sign=30 km/h
+  t=  481s  events=  964  pending=  962  receiver=    2  sign=30 km/h
+  t=  491s  events=  984  pending=  982  receiver=    2  sign=30 km/h
+  t=  500s  events= 1002  pending= 1000  receiver=    2  sign=30 km/h
+  t=  510s  events= 1022  pending= 1020  receiver=    2  sign=30 km/h
+  t=  520s  events= 1042  pending= 1040  receiver=    2  sign=30 km/h
+  t=  530s  events= 1062  pending= 1060  receiver=    2  sign=30 km/h
+  t=  540s  events= 1082  pending= 1080  receiver=    2  sign=30 km/h
+  t=  551s  events= 1102  pending= 1100  receiver=    2  sign=30 km/h
+  t=  561s  events= 1124  pending= 1122  receiver=    2  sign=30 km/h
+  t=  571s  events= 1144  pending= 1142  receiver=    2  sign=30 km/h
+  t=  581s  events= 1164  pending= 1162  receiver=    2  sign=30 km/h
+  t=  590s  events= 1182  pending= 1180  receiver=    2  sign=30 km/h
+
+>>> WAN RESTORED: waiting for the backlog to drain
+
+>>> Stopping the node and verifying event conservation
+
+==============================================================================
+OS3-5 OFFLINE DEMONSTRATION REPORT
+==============================================================================
+[PASS] online delivery works before the cut
+        receiver is receiving events while the WAN is online
+[PASS] the WAN stayed cut for the whole window
+        no one restored the WAN during the outage
+[PASS] every worker kept running during the outage
+        7/7 workers running at every sample
+[PASS] local processing continued (sensing + storage)
+        1196 events stored while offline (about 1200 expected)
+[PASS] nothing was delivered while offline
+        receiver count 2 -> 2
+[PASS] outbox accumulated every offline event
+        pending 4 -> 1200 (+1196) for 1196 new events
+[PASS] local decisions continued (speed sign)
+        59 sign decisions recorded while offline
+[PASS] backlog drained after reconnect
+        pending 1200 -> 2 in 18 s (live tail of up to 6 events is normal: new readings keep arriving)
+[PASS] receiver ignores a replayed event (idempotent)
+        replay answered duplicate=True, receiver count 1236 -> 1236
+[PASS] no event lost locally
+        1238 events stored, 1238 queued in the outbox, 0 missing
+[PASS] everything marked 'sent' really reached the receiver
+        1238 sent, 0 not found at the receiver
+[PASS] receiver holds nothing the node did not produce
+        1238 at the receiver, 0 unknown IDs
+[PASS] conservation: events = delivered + still pending
+        1238 events = 1238 delivered + 0 pending (pending ones are the live tail and will be sent on the next run)
+==============================================================================
+RESULT: ALL CHECKS PASSED
+Report saved: /home/cristian/Escritorio/operating_system/OS3/data/runs/os3_5-20261116-125532/report.json
