@@ -27,25 +27,22 @@ for implementation and operating details.
 
 ## 2. Verification evidence
 
-Latest recorded OS2 checks:
+Latest OS2 verification on 2026-11-17:
 
-- **25/25** unit and process tests passed in WSL2.
-- Scenarios OS2-1 through OS2-4 passed in a short acceptance run.
-- A dedicated 30-second OS2-5 run passed: **22 outage events** were
+- **26/26** unit and process tests passed in WSL2.
+- OS2-1 through OS2-5 passed in an isolated 30-second acceptance run:
+  **29 outage events** were acknowledged without loss or duplicate IDs.
+- The full **600-second** acceptance run passed: **599 outage events** were
   acknowledged without loss or duplicate IDs.
-- On **2026-11-16**, the full **600-second OS2-5** outage run passed:
-  **420 outage events** were acknowledged without loss or duplicate IDs.
+- Both acceptance runs completed graceful SIGTERM shutdown without forced
+  process-group termination.
 - Compose configuration validation passed.
 - The map API and rendered dashboard map were inspected; the GeoJSON contains
   **390 features** and OSM attribution.
 
-The 600-second OS2-5 acceptance criterion is now confirmed. After the pass,
-the demo supervisor and workers did not exit in response to SIGTERM; the
-test process tree had to be force-stopped. Graceful shutdown after the
-full-duration run remains a follow-up and should be investigated separately.
-
-These results describe the project at the time of writing. Re-run relevant
-tests and scenarios after further changes.
+The earlier SIGTERM hang after a controller crash was fixed by using a
+lock-free shared stop flag for supervisor-managed workers. The lifecycle test
+now covers controller restart followed by stopping every worker.
 
 ## 3. Remaining work and known limitations
 
@@ -79,8 +76,6 @@ tests and scenarios after further changes.
   do not expose it publicly.
 - Backup rotation/retention and an external backup destination are not
   configured.
-- The full-duration scenario's graceful demo shutdown needs investigation;
-  the acceptance result itself passed.
 
 ## 4. Map source and attribution
 

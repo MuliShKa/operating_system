@@ -1,11 +1,10 @@
 """Optional local upstream receiver for offline-sync demonstrations."""
 
 import logging
-import multiprocessing as mp
 import signal
 import sqlite3
-from multiprocessing.synchronize import Event
 from pathlib import Path
+from threading import Event
 
 from edge import storage
 from edge.config import load_config
@@ -73,7 +72,7 @@ def main() -> int:
         format="%(asctime)s %(processName)s %(levelname)s %(message)s",
     )
     config = load_config()
-    stop_event = mp.get_context("spawn").Event()
+    stop_event = Event()
 
     def handle_signal(signum: int, _frame: object) -> None:
         log.info("received signal %s; stopping upstream receiver", signum)

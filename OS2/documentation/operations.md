@@ -29,9 +29,11 @@ the YAML configuration, initializes `data/os2.db`, and creates the backup
 directory. It does not populate application tables with demo or seed data
 beyond creating the schema.
 
-`start_demo.sh` launches `edge.upstream_receiver` and `edge.supervisor`, sets
-`PYTHONPATH=src`, and sends SIGTERM to both on shutdown. The supervisor starts
-the five worker processes. Open `http://127.0.0.1:8000`; press Ctrl+C to stop.
+`start_demo.sh` launches `edge.upstream_receiver` and `edge.supervisor` in
+separate process groups, sets `PYTHONPATH=src`, and sends SIGTERM on shutdown.
+It waits up to ten seconds for each group to stop, then escalates to terminate
+and kill if needed. The supervisor starts the five worker processes. Open
+`http://127.0.0.1:8000`; press Ctrl+C to stop.
 
 Select a Python executable for the scripts with `OS2_PYTHON`:
 

@@ -94,6 +94,8 @@ you need to preserve the demo data.
   tests, scenarios, Docker/systemd, backups, and troubleshooting.
 - [Implementation status](documentation/implementation-status.md) — completed
   work, verification evidence, and remaining limitations.
+- [OS2 project task tracker](document/OS2_Project_Task_Tracker.xlsx) — task
+  breakdown for the five acceptance scenarios and supporting project work.
 - [OSM source registry](sources/source_registry.csv) and
   [pathway GeoJSON](sources/songdo_central_park_pathways.geojson).
 

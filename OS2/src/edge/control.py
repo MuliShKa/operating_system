@@ -7,11 +7,11 @@ not connect to real motors or sensors; a later process layer will provide I/O.
 from collections.abc import Callable
 from itertools import count
 from math import isfinite
-from threading import Event
 from time import monotonic
 
 from edge.bounded_queue import BoundedSensorQueue
 from edge.models import ActuatorCommand, SensorReading
+from edge.stop_event import StopSignal
 
 
 class JitterMonitor:
@@ -41,7 +41,7 @@ class JitterMonitor:
 
 
 def run_periodic_control_loop(
-    stop_event: Event,
+    stop_event: StopSignal,
     on_tick: Callable[[float, float | None], None],
     period_s: float = 0.05,
     clock: Callable[[], float] = monotonic,

@@ -80,3 +80,11 @@ class BoundedSensorQueue:
         """Return the number of readings removed to make room for newer data."""
         with self._dropped_count.get_lock():
             return self._dropped_count.value
+
+    def close(self) -> None:
+        """Close the underlying multiprocessing queue after its users stop."""
+        self._queue.close()
+
+    def join_thread(self) -> None:
+        """Wait for this process's queue feeder thread to finish."""
+        self._queue.join_thread()

@@ -5,7 +5,6 @@ import logging
 import os
 from dataclasses import asdict
 from itertools import count
-from multiprocessing.synchronize import Event
 from statistics import fmean
 from time import monotonic
 
@@ -18,6 +17,7 @@ from edge.control import (
     run_periodic_control_loop,
 )
 from edge.models import ActuatorCommand, SensorReading
+from edge.stop_event import StopSignal
 from edge.unix_socket import UnixMessageClient, UnixMessageServer
 
 CRUISE_VELOCITY = 0.5
@@ -79,7 +79,7 @@ def save_latch(config: NodeConfig) -> None:
     log.warning("E-stop latched")
 
 
-def run_safety_monitor(stop_event: Event, config: NodeConfig) -> None:
+def run_safety_monitor(stop_event: StopSignal, config: NodeConfig) -> None:
     actuators = Actuators(config, storage.load_state(config.database, LATCH_KEY) == "1")
 
     def handle(message: dict) -> dict:
@@ -131,7 +131,7 @@ def telemetry(config: NodeConfig, ticks: int, jitters: list[float], latched: boo
 
 
 def run_controller(
-    sensor_queue: BoundedSensorQueue, stop_event: Event, config: NodeConfig
+    sensor_queue: BoundedSensorQueue, stop_event: StopSignal, config: NodeConfig
 ) -> None:
     client = UnixMessageClient(config.safety_socket, timeout=config.command_ttl_s)
     safety = RobotSafetyController(config.obstacle_threshold_m, config.command_ttl_s)

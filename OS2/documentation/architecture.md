@@ -31,6 +31,9 @@ with the `spawn` context:
 remote receiver and WAN availability. It can be disabled or switched offline
 without stopping local sensor processing and safety workers.
 
+The supervisor shares a lock-free stop flag with its workers, so forcibly
+restarting one worker cannot strand the synchronization lock needed at shutdown.
+
 ```text
 simulated sensor generator
           │

@@ -221,10 +221,10 @@ separate deployment concern.
 
 ### What I Checked
 
-The final OS5 test and scenario run is deferred until the implementation work
-is complete. Use `python3 scenarios/run_all_scenarios.py` from the OS5 root;
-it discovers the focused and integration tests, including the compound WAN
-outage/Processor restart scenario.
+The OS5 scenario runner completed with 43 tests passing on WSL Debian with
+Python 3.13.5. The preflight accepts Python 3.12 or 3.14, neither of which was
+installed in that environment; repeat the run on a supported interpreter to
+verify that runtime matrix. The runner is `python3 scenarios/run_all_scenarios.py`.
 
 ### How to Switch Between My Branches
 

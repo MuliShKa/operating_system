@@ -3,11 +3,11 @@
 import random
 from collections.abc import Callable
 from math import isfinite
-from multiprocessing.synchronize import Event
 from time import monotonic
 
 from edge.bounded_queue import BoundedSensorQueue
 from edge.models import SensorReading
+from edge.stop_event import StopSignal
 
 
 def make_simulated_readings(
@@ -29,7 +29,7 @@ def make_simulated_readings(
 
 def run_sensor_generator(
     sensor_queue: BoundedSensorQueue,
-    stop_event: Event,
+    stop_event: StopSignal,
     interval_s: float = 0.05,
     seed: int | None = None,
     clock: Callable[[], float] = monotonic,

@@ -2,11 +2,9 @@
 
 import json
 import logging
-import multiprocessing as mp
 import signal
 import sqlite3
 import threading
-from multiprocessing.synchronize import Event
 from time import monotonic
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -18,6 +16,7 @@ from edge import storage
 from edge.bounded_queue import BoundedSensorQueue
 from edge.config import NodeConfig, load_config
 from edge.models import SensorReading
+from edge.stop_event import StopSignal
 from edge.unix_socket import UnixMessageClient
 
 REQUEST_TIMEOUT_S = 0.5
@@ -235,7 +234,7 @@ def _handler(
 
 
 def run_api_server(
-    stop_event: Event,
+    stop_event: StopSignal,
     config: NodeConfig,
     sensor_queue: BoundedSensorQueue | None = None,
 ) -> None:
@@ -260,7 +259,7 @@ def run_api_server(
 
 def main() -> int:
     logging.basicConfig(level=logging.INFO)
-    stop_event = mp.get_context("spawn").Event()
+    stop_event = threading.Event()
     previous_handlers = {
         signum: signal.signal(signum, lambda _signum, _frame: stop_event.set())
         for signum in (signal.SIGINT, signal.SIGTERM)

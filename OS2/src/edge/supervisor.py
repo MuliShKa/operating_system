@@ -8,7 +8,6 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from math import isfinite
 from multiprocessing.process import BaseProcess
-from multiprocessing.synchronize import Event
 from time import monotonic
 
 from edge import storage
@@ -17,6 +16,7 @@ from edge.bounded_queue import BoundedSensorQueue
 from edge.config import NodeConfig, load_config
 from edge.sensor import run_sensor_generator
 from edge.sync_worker import run_sync_worker
+from edge.stop_event import SharedStopEvent, StopSignal
 from edge.workers import run_controller, run_safety_monitor
 
 POLL_INTERVAL_S = 0.1
@@ -67,7 +67,7 @@ class ProcessSupervisor:
         config: NodeConfig,
         *,
         context: mp.context.BaseContext | None = None,
-        stop_event: Event | None = None,
+        stop_event: StopSignal | None = None,
         worker_specs: Sequence[WorkerSpec] | None = None,
         poll_interval_s: float = POLL_INTERVAL_S,
         shutdown_timeout_s: float = SHUTDOWN_TIMEOUT_S,
@@ -80,8 +80,12 @@ class ProcessSupervisor:
         self.config = config
         self.context = context or mp.get_context("spawn")
         self.stop_event = (
-            stop_event if stop_event is not None else self.context.Event()
+            stop_event
+            if stop_event is not None
+            else SharedStopEvent(context=self.context)
         )
+        self._shutdown_requested = False
+        self._shutdown_signal: int | None = None
         self.poll_interval_s = poll_interval_s
         self.shutdown_timeout_s = shutdown_timeout_s
         self._sensor_queue: BoundedSensorQueue | None = None
@@ -91,7 +95,13 @@ class ProcessSupervisor:
 
     def request_shutdown(self) -> None:
         """Ask the supervisor loop and all workers to stop."""
+        self._shutdown_requested = True
         self.stop_event.set()
+
+    def _request_shutdown_from_signal(self, signum: int) -> None:
+        """Record a signal without acquiring multiprocessing locks in its handler."""
+        self._shutdown_signal = signum
+        self._shutdown_requested = True
 
     def run(self) -> None:
         """Initialize local storage, launch workers, and supervise until stopped."""
@@ -115,6 +125,8 @@ class ProcessSupervisor:
                 self._start_worker(spec, restarted=False)
             self._monitor_workers()
         finally:
+            if self._shutdown_signal is not None:
+                log.info("received signal %s; shutting down", self._shutdown_signal)
             try:
                 self._shutdown_workers()
             finally:
@@ -172,7 +184,9 @@ class ProcessSupervisor:
         assert self._worker_specs is not None
         specs = {spec.name: spec for spec in self._worker_specs}
 
-        while not self.stop_event.wait(self.poll_interval_s):
+        while not self._shutdown_requested:
+            if self.stop_event.wait(self.poll_interval_s):
+                return
             for name, process in tuple(self._processes.items()):
                 if process.is_alive():
                     continue
@@ -210,6 +224,7 @@ class ProcessSupervisor:
         """Give workers time to exit, then terminate and reap any stragglers."""
         self.stop_event.set()
         processes = list(self._processes.items())
+        log.info("shutting down %d workers", len(processes))
         deadline = monotonic() + self.shutdown_timeout_s
         for _, process in processes:
             if process.is_alive():
@@ -218,6 +233,7 @@ class ProcessSupervisor:
         forced: set[str] = set()
         for name, process in processes:
             if process.is_alive():
+                log.warning("%s did not exit gracefully; sending terminate", name)
                 forced.add(name)
                 process.terminate()
         forced_deadline = monotonic() + FORCED_SHUTDOWN_TIMEOUT_S
@@ -226,6 +242,7 @@ class ProcessSupervisor:
                 process.join(timeout=max(0.0, forced_deadline - monotonic()))
         for name, process in processes:
             if process.is_alive():
+                log.error("%s did not terminate; sending kill", name)
                 process.kill()
                 process.join(timeout=FORCED_SHUTDOWN_TIMEOUT_S)
             if process.is_alive():
@@ -253,8 +270,7 @@ def main() -> int:
     supervisor = ProcessSupervisor(load_config())
 
     def handle_signal(signum: int, _frame: object) -> None:
-        log.info("received signal %s; shutting down", signum)
-        supervisor.request_shutdown()
+        supervisor._request_shutdown_from_signal(signum)
 
     previous_handlers = {
         signum: signal.signal(signum, handle_signal)

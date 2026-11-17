@@ -1,10 +1,10 @@
 """Drain the durable local outbox to the configured upstream receiver."""
 
 import logging
-from multiprocessing.synchronize import Event
 
 from edge import storage
 from edge.config import NodeConfig
+from edge.stop_event import StopSignal
 from edge.unix_socket import UnixMessageClient
 
 SYNC_RETRY_INTERVAL_S = 0.5
@@ -28,7 +28,7 @@ def _acknowledged_ids(response: dict[str, object], batch_ids: set[str]) -> list[
     return acknowledged
 
 
-def run_sync_worker(stop_event: Event, config: NodeConfig) -> None:
+def run_sync_worker(stop_event: StopSignal, config: NodeConfig) -> None:
     """Retry batches until stopped; mark events sent only after receiver ACKs."""
     client = UnixMessageClient(
         config.upstream_socket, timeout=UPSTREAM_REQUEST_TIMEOUT_S

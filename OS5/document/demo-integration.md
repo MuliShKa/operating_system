@@ -110,16 +110,15 @@ their loops. The supervisor waits for the child processes to finish. If a
 process does not stop within the timeout, the supervisor terminates and reaps
 it.
 
-## Deferred checks
+## Validation status
 
-The focused and full OS5 tests are deferred until the implementation steps are
-complete. Run them from the project root in Linux/WSL during final validation:
+The full OS5 runner completed with **43 tests passing** on WSL Debian with
+Python 3.13.5. The repository preflight supports Python 3.12 or 3.14, neither
+of which is installed in that environment, so repeat the runner on a supported
+version before treating that runtime matrix as verified.
 
-```bash
-python3 scenarios/run_all_scenarios.py
-```
-
-The compound-failure test is in `tests/test_compound_failure.py`.
+The compound-failure test is in `tests/test_compound_failure.py`; run the suite
+from the project root with `python3 scenarios/run_all_scenarios.py`.
 
 ## What is not included yet
 

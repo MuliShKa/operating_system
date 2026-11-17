@@ -23,7 +23,7 @@ if sqlite3.sqlite_version_info < (3, 35, 0):
 print(f"Python {sys.version.split()[0]} / SQLite {sqlite3.sqlite_version}")
 PY
 
-for utility in bash flock; do
+for utility in bash flock setsid; do
   command -v "$utility" >/dev/null || {
     echo "Required utility not found: $utility" >&2
     exit 1
