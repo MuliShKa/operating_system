@@ -186,6 +186,47 @@ button:disabled {
 </section>
 
 <section class="card">
+    <h2 class="section-title">Bonus – Resource Trends</h2>
+    <p class="detail">
+        From the <code>/proc</code> samples in <code>process_health</code>, every 2 s.
+        The chart, the comparison and the CSV export come from the same data.
+    </p>
+    <label>Metric
+        <select id="trend-metric">
+            <option value="involuntary_per_s">Involuntary switches / s</option>
+            <option value="voluntary_per_s">Voluntary switches / s</option>
+            <option value="cpu_pct">CPU (%)</option>
+            <option value="rss_mb">Memory RSS (MB)</option>
+        </select>
+    </label>
+    <label>Window
+        <select id="trend-minutes">
+            <option value="1">1 min</option>
+            <option value="2" selected>2 min</option>
+            <option value="5">5 min</option>
+            <option value="15">15 min</option>
+        </select>
+    </label>
+    <a id="trend-export" href="/api/history.csv?minutes=2" download="os1_resource_trends.csv">Export CSV</a>
+    <svg id="trend-chart" viewBox="0 0 900 260" width="100%" role="img"
+         aria-label="Resource trend chart"></svg>
+    <div id="trend-legend" class="detail"></div>
+    <table>
+        <thead>
+            <tr>
+                <th>Process</th>
+                <th>Previous window (avg)</th>
+                <th>Last window (avg)</th>
+                <th>Change</th>
+            </tr>
+        </thead>
+        <tbody id="trend-compare">
+            <tr><td colspan="4" class="empty">Waiting for samples...</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<section class="card">
     <h2 class="section-title">Recent Sensor Readings</h2>
     <table>
         <thead>
@@ -435,6 +476,103 @@ button:disabled {
 
     refreshDashboard();
     setInterval(refreshDashboard, 2000);
+
+    // ---- Bonus: resource trends --------------------------------------
+    const COLORS = ["#2563eb", "#dc2626", "#16a34a", "#9333ea",
+                    "#ea580c", "#0891b2", "#ca8a04", "#475569"];
+    const SVG_NS = "http://www.w3.org/2000/svg";
+
+    function svgElement(tag, attributes, text) {
+        const element = document.createElementNS(SVG_NS, tag);
+        for (const [key, value] of Object.entries(attributes)) {
+            element.setAttribute(key, value);
+        }
+        if (text !== undefined) element.textContent = text;
+        return element;
+    }
+
+    function drawChart(data, metric) {
+        const svg = document.getElementById("trend-chart");
+        const legend = document.getElementById("trend-legend");
+        svg.replaceChildren();
+        legend.replaceChildren();
+
+        const left = 50, right = 890, top = 10, bottom = 230;
+        const names = Object.keys(data.trends).sort();
+        const values = names.flatMap(name => data.trends[name].map(point => point[metric]));
+        const maxValue = Math.max(1, ...values);
+        const x = wall => left + (wall - data.since) / (data.until - data.since) * (right - left);
+        const y = value => bottom - value / maxValue * (bottom - top);
+
+        // Axes, scale and the split between the two compared windows.
+        svg.appendChild(svgElement("line", {x1: left, y1: bottom, x2: right, y2: bottom, stroke: "#94a3b8"}));
+        svg.appendChild(svgElement("line", {x1: left, y1: top, x2: left, y2: bottom, stroke: "#94a3b8"}));
+        svg.appendChild(svgElement("text", {x: left - 6, y: top + 10, "text-anchor": "end", "font-size": 12},
+                                   maxValue.toFixed(1)));
+        svg.appendChild(svgElement("text", {x: left - 6, y: bottom, "text-anchor": "end", "font-size": 12}, "0"));
+        svg.appendChild(svgElement("line", {x1: x(data.split), y1: top, x2: x(data.split), y2: bottom,
+                                            stroke: "#64748b", "stroke-dasharray": "4 4"}));
+        svg.appendChild(svgElement("text", {x: x(data.split) - 6, y: bottom + 20, "text-anchor": "end",
+                                            "font-size": 12}, "previous window"));
+        svg.appendChild(svgElement("text", {x: x(data.split) + 6, y: bottom + 20, "font-size": 12},
+                                   "last window"));
+
+        names.forEach((name, index) => {
+            const color = COLORS[index % COLORS.length];
+            const points = data.trends[name]
+                .map(point => `${x(point.wall).toFixed(1)},${y(point[metric]).toFixed(1)}`).join(" ");
+            svg.appendChild(svgElement("polyline", {points, fill: "none", stroke: color, "stroke-width": 2}));
+
+            const item = document.createElement("span");
+            item.style.color = color;
+            item.style.marginRight = "14px";
+            item.textContent = `■ ${name}`;
+            legend.appendChild(item);
+        });
+    }
+
+    function showComparison(data, metric) {
+        const body = document.getElementById("trend-compare");
+        body.replaceChildren();
+        const names = Object.keys(data.comparison).sort();
+        if (names.length === 0) {
+            showMessage(body, 4, "No samples in this window yet");
+            return;
+        }
+        for (const name of names) {
+            const before = data.comparison[name].before?.[metric];
+            const after = data.comparison[name].after?.[metric];
+            const row = document.createElement("tr");
+            row.appendChild(makeCell(name));
+            row.appendChild(makeCell(before ?? "—"));
+            row.appendChild(makeCell(after ?? "—"));
+            const change = before == null || after == null ? "—"
+                : `${after - before >= 0 ? "+" : ""}${(after - before).toFixed(2)}`;
+            row.appendChild(makeCell(change));
+            body.appendChild(row);
+        }
+    }
+
+    async function refreshTrends() {
+        const metric = document.getElementById("trend-metric").value;
+        const minutes = document.getElementById("trend-minutes").value;
+        document.getElementById("trend-export").href = `/api/history.csv?minutes=${minutes}`;
+        try {
+            const response = await fetch(`/api/history?minutes=${minutes}`, { cache: "no-store" });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            drawChart(data, metric);
+            showComparison(data, metric);
+        } catch (error) {
+            showMessage(document.getElementById("trend-compare"), 4,
+                        `Trends unavailable: ${error.message}`);
+        }
+    }
+
+    document.getElementById("trend-metric").addEventListener("change", refreshTrends);
+    document.getElementById("trend-minutes").addEventListener("change", refreshTrends);
+    refreshTrends();
+    setInterval(refreshTrends, 10000);
 </script>
 
 </body>

@@ -1,0 +1,125 @@
+{
+  "scenario": "OS1-bonus",
+  "seconds_per_phase": 30,
+  "burners": 28,
+  "trend_points": 232,
+  "comparison_idle_vs_load": {
+    "ProcSampler": {
+      "before": {
+        "cpu_pct": 0.39,
+        "rss_mb": 30.12,
+        "voluntary_per_s": 50.57,
+        "involuntary_per_s": 7.14
+      },
+      "after": {
+        "cpu_pct": 0.47,
+        "rss_mb": 30.28,
+        "voluntary_per_s": 37.32,
+        "involuntary_per_s": 19.35
+      }
+    },
+    "API": {
+      "before": {
+        "cpu_pct": 0.04,
+        "rss_mb": 30.12,
+        "voluntary_per_s": 2.0,
+        "involuntary_per_s": 0.04
+      },
+      "after": {
+        "cpu_pct": 0.03,
+        "rss_mb": 30.12,
+        "voluntary_per_s": 2.0,
+        "involuntary_per_s": 0.03
+      }
+    },
+    "SyncWorker": {
+      "before": {
+        "cpu_pct": 0.5,
+        "rss_mb": 32.21,
+        "voluntary_per_s": 21.85,
+        "involuntary_per_s": 3.54
+      },
+      "after": {
+        "cpu_pct": 0.57,
+        "rss_mb": 32.28,
+        "voluntary_per_s": 18.39,
+        "involuntary_per_s": 10.29
+      }
+    },
+    "Processor": {
+      "before": {
+        "cpu_pct": 0.46,
+        "rss_mb": 30.11,
+        "voluntary_per_s": 42.05,
+        "involuntary_per_s": 3.82
+      },
+      "after": {
+        "cpu_pct": 0.57,
+        "rss_mb": 30.07,
+        "voluntary_per_s": 27.47,
+        "involuntary_per_s": 12.51
+      }
+    },
+    "SensorGen": {
+      "before": {
+        "cpu_pct": 0.04,
+        "rss_mb": 28.98,
+        "voluntary_per_s": 1.07,
+        "involuntary_per_s": 0.0
+      },
+      "after": {
+        "cpu_pct": 0.03,
+        "rss_mb": 28.98,
+        "voluntary_per_s": 1.0,
+        "involuntary_per_s": 0.13
+      }
+    },
+    "Actuator": {
+      "before": {
+        "cpu_pct": 0.14,
+        "rss_mb": 30.0,
+        "voluntary_per_s": 13.73,
+        "involuntary_per_s": 0.43
+      },
+      "after": {
+        "cpu_pct": 0.13,
+        "rss_mb": 30.11,
+        "voluntary_per_s": 10.01,
+        "involuntary_per_s": 1.84
+      }
+    },
+    "HealthMon": {
+      "before": {
+        "cpu_pct": 0.04,
+        "rss_mb": 30.13,
+        "voluntary_per_s": 1.68,
+        "involuntary_per_s": 0.39
+      },
+      "after": {
+        "cpu_pct": 0.0,
+        "rss_mb": 30.13,
+        "voluntary_per_s": 1.26,
+        "involuntary_per_s": 0.63
+      }
+    },
+    "Receiver": {
+      "before": {
+        "cpu_pct": 0.32,
+        "rss_mb": 35.84,
+        "voluntary_per_s": 8.25,
+        "involuntary_per_s": 0.14
+      },
+      "after": {
+        "cpu_pct": 0.5,
+        "rss_mb": 36.35,
+        "voluntary_per_s": 8.34,
+        "involuntary_per_s": 0.4
+      }
+    }
+  },
+  "checks": {
+    "every worker has a trend": true,
+    "plotted metrics agree with the exported CSV manifest": true,
+    "comparison: more involuntary switches under load": true
+  }
+}
