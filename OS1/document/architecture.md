@@ -37,12 +37,9 @@ src/edge/
 │   ├── proc_stats.py      parses /proc/[pid]/stat and /status
 │   └── proc_sampler.py    samples every worker every 2.0 s
 │
-├── os1_5_wan_outage/      OS1-5  Internet cut
-│   ├── sync_worker.py     sends the outbox only while the WAN is up
-│   └── receiver.py        mock upstream server, ignores duplicate event IDs
-│
-└── os1_bonus_trends/      BONUS  resource trends + comparison + CSV export
-    └── history.py         rates over time, before/after averages, CSV manifest
+└── os1_5_wan_outage/      OS1-5  Internet cut
+    ├── sync_worker.py     sends the outbox only while the WAN is up
+    └── receiver.py        mock upstream server, ignores duplicate event IDs
 ```
 
 ---
@@ -327,80 +324,3 @@ Experiment: 30 s idle, then 30 s with 28 CPU-burner processes.
 | Sends batches of 50 only while the WAN is up | [`sync_worker.py`](../src/edge/os1_5_wan_outage/sync_worker.py#L25) | `run_sync_worker` |
 | Receiver: `INSERT OR IGNORE` on event ID → no duplicate | [`receiver.py`](../src/edge/os1_5_wan_outage/receiver.py#L26) | `accept_event` |
 | Scenario (cut, drain, conservation check) / tests | [`os1_5_wan_outage.py`](../scenarios/os1_5_wan_outage.py) · [`test_os1_5_outage.py`](../tests/test_os1_5_outage.py) |  |
-
----
-
-## Bonus – Resource trends & historical comparison
-
-**Expected:** (assessment, Phase 3 / Optional) add historical comparisons and resource trends, so that the **plotted metrics agree with the exported manifest**.
-
-**OS concepts:** `/proc` counters turned into rates over time, time windows, one source of truth for the chart and the export.
-
-```
-  +---------------+  /proc every 2.0 s   +----------------+     +------------------+
-  |  Linux kernel | -------------------> |  ProcSampler   | --> |  process_health  |
-  +---------------+   (from OS1-4)       +----------------+     |  (SQLite)        |
-                                                                +--------+---------+
-                                                                         |
-                                                                         v
-                                          +-------------------------------------------+
-                                          | history.build_history()                   |
-                                          |  two consecutive samples -> one rate      |
-                                          |  CPU %, RSS, voluntary / involuntary /s   |
-                                          |  averages: previous window vs last window |
-                                          +---------------------+---------------------+
-                                                                |  same data
-                                    +---------------------------+---------------------------+
-                                    v                                                       v
-                     +------------------------------+                    +------------------------------+
-                     | GET /api/history             |                    | GET /api/history.csv         |
-                     | -> dashboard chart + table   |                    | -> exported manifest (file)  |
-                     +--------------+---------------+                    +--------------+---------------+
-                                    |                                                   |
-                                    +-------------------> equal ? <---------------------+
-                                                       (checked by the scenario)
-
-
-  Trend of one worker (involuntary switches / s)
-
-     ^
-  12 |                                   ___/\___/\____
-     |                                  /
-   4 |  ____/\_____/\____/\____________/
-     +-----------------------------------+------------------> time
-                 idle (30 s)             :     CPU load (30 s)
-                                       split
-```
-
-A rate needs **two readings** of a counter: no point is drawn across a PID change
-(a restarted worker starts its counters again from 0).
-
-| Check | Result |
-|---|---|
-| Every worker has a trend | 8 / 8 |
-| Plotted metrics == exported CSV manifest | **identical** |
-| Comparison: more involuntary switches under load | yes (Processor 3.8 → 12.5 /s) |
-
-Experiment: 30 s idle, then 30 s with 28 CPU-burner processes; 232 points plotted and exported.
-
-| Worker (top 4) | Involuntary switches / s, idle | Under load |
-|---|---|---|
-| ProcSampler | 7.14 | **19.35** |
-| Processor | 3.82 | **12.51** |
-| SyncWorker | 3.54 | **10.29** |
-| Actuator | 0.43 | **1.84** |
-
-Chart: [`os1_bonus_trends.svg`](results/os1_bonus_trends.svg) · manifest: [`os1_bonus_trends.csv`](results/os1_bonus_trends.csv)
-
-**Code:**
-
-| What | File | Function |
-|---|---|---|
-| Read the samples of a time range | [`history.py`](../src/edge/os1_bonus_trends/history.py#L20) | `load_samples` |
-| Two samples → one point (rates), skip PID changes | [`history.py`](../src/edge/os1_bonus_trends/history.py#L31) | `build_trends` |
-| Previous window vs last window | [`history.py`](../src/edge/os1_bonus_trends/history.py#L63) | `compare`, `build_history` |
-| Export / read back the CSV manifest | [`history.py`](../src/edge/os1_bonus_trends/history.py#L87) | `to_csv`, `read_csv` |
-| API routes `/api/history` and `/api/history.csv` | [`api_server.py`](../src/edge/core/api_server.py#L40) | `history_from_query`, `do_GET` |
-| Dashboard card: chart, comparison, Export CSV | [`index.html`](../src/ui/static/index.html#L189) | `drawChart`, `showComparison` |
-| Samples written every 2.0 s (from OS1-4) | [`proc_sampler.py`](../src/edge/os1_4_contention/proc_sampler.py#L12) | `sample_once` |
-| Scenario (idle, load, manifest check, SVG) / tests | [`os1_bonus_trends.py`](../scenarios/os1_bonus_trends.py) · [`test_os1_bonus_trends.py`](../tests/test_os1_bonus_trends.py) |  |

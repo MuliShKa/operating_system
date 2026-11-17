@@ -3,10 +3,8 @@
 import json
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs
 
 from edge.core.ipc import list_workers
-from edge.os1_bonus_trends import history
 from edge.node_config import API_HOST, API_PORT, NODE_NAME, RULE
 
 DASHBOARD_PATH = Path(__file__).resolve().parents[2] / "ui" / "static" / "index.html"
@@ -37,13 +35,6 @@ def build_status(channels, state) -> dict:
     }
 
 
-def history_from_query(query: str) -> dict:
-    """/api/history?minutes=5 or ?since=..&until=..&split=.. (wall-clock seconds)."""
-    params = {key: float(values[0]) for key, values in parse_qs(query).items()}
-    minutes = min(max(params.get("minutes", 5), 1), 60)
-    return history.build_history(minutes, params.get("since"), params.get("until"), params.get("split"))
-
-
 def run_api_server(channels, state) -> None:
     class Handler(BaseHTTPRequestHandler):
         def reply(self, body: bytes, content_type: str) -> None:
@@ -54,20 +45,9 @@ def run_api_server(channels, state) -> None:
             self.wfile.write(body)
 
         def do_GET(self) -> None:
-            path, _, query = self.path.partition("?")
-            if path.startswith("/api/history"):
-                try:
-                    found = history_from_query(query)
-                except ValueError:
-                    self.send_error(400, "since, until, split and minutes must be numbers")
-                    return
-            if path == "/api/status":
+            if self.path == "/api/status":
                 self.reply(json.dumps(build_status(channels, state)).encode(), "application/json")
-            elif path == "/api/history":  # Bonus: trends + comparison
-                self.reply(json.dumps(found).encode(), "application/json")
-            elif path == "/api/history.csv":  # Bonus: the same points, as a file
-                self.reply(history.to_csv(found).encode(), "text/csv; charset=utf-8")
-            elif path in ("/", "/index.html"):
+            elif self.path in ("/", "/index.html"):
                 self.reply(DASHBOARD_PATH.read_bytes(), "text/html; charset=utf-8")
             else:
                 self.send_error(404)

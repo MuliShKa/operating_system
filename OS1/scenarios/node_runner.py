@@ -42,12 +42,6 @@ def get_status() -> dict:
         return json.load(response)
 
 
-def api_get(path: str) -> str:
-    """GET any API path (for example /api/history.csv) and return the body as text."""
-    with urlopen(f"{API_URL}{path}", timeout=10) as response:
-        return response.read().decode("utf-8")
-
-
 def set_wan(online: bool) -> None:
     request = Request(f"{API_URL}/api/wan/{'online' if online else 'offline'}", method="POST")
     with urlopen(request, timeout=3):
