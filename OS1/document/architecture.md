@@ -1,11 +1,6 @@
 # OS1 – Smart Building Edge Gateway (Songdo Convensia)
 
-Node `EDGE_NODE_OS1_CONVENSIA` · lat 37.3888, lon 126.6534
-
-> Each scenario: what was expected → OS concept → diagram → result → **code** (click a file to open it at the right line).
-
-> **Mission:** sense, decide and act **locally**, and keep working when the Internet is down,
-> **without losing a single event.**
+> **Mission:** sense, decide and act **locally**, and keep working when the Internet is down, **without losing a single event.**
 
 ## Source layout
 
