@@ -111,3 +111,4 @@ trap 'exit 143' TERM
 echo "OS2 demo running at http://127.0.0.1:8000"
 echo "Use the dashboard WAN control to simulate disconnect and recovery."
 wait -n "$SUPERVISOR_PID" "$UPSTREAM_PID"
+
