@@ -27,6 +27,8 @@ run_team() {
 	OS2)
 		bash scripts/start_demo.sh >/tmp/os2_demo.log 2>&1 &
 		local node=$!
+		# Ctrl+C must not leave the OS2 node holding port 8000.
+		trap 'kill -INT '"$node"' 2>/dev/null; wait '"$node"' 2>/dev/null; exit 130' INT TERM
 		echo "Starting the OS2 node..."
 		if ! wait_for_api; then
 			echo "OS2 node did not start (see /tmp/os2_demo.log)"
@@ -37,6 +39,7 @@ run_team() {
 		local status=$?
 		kill -INT "$node" 2>/dev/null
 		wait "$node" 2>/dev/null
+		trap - INT TERM
 		return $status
 		;;
 	OS3) .venv/bin/python scenarios/run_os3_scenarios.py --quick ;;
