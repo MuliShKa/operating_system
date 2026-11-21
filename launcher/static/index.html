@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scenario Launcher · Group D</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%2322a090'/><path d='M12 9l12 7-12 7z' fill='white'/></svg>">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">▶</div>
+      <div>
+        <h1>Scenario Launcher</h1>
+        <p>OS Programming · Group D · OS1 – OS5</p>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="segmented" role="radiogroup" aria-label="Run mode">
+        <button data-mode="quick" class="active" role="radio" aria-checked="true"
+                title="Short durations: Internet cuts of 30–60 s instead of 10 min">Quick</button>
+        <button data-mode="official" role="radio" aria-checked="false"
+                title="Official durations from the handbook: Internet cuts last 10 min">Official</button>
+      </div>
+      <button id="run-everything" class="btn primary">Run all scenarios <span class="muted-on-primary">OS1 → OS5</span></button>
+      <div id="ports" class="ports" aria-live="polite"></div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="catalog">
+      <nav id="team-tabs" class="tabs" role="tablist"></nav>
+      <div id="team-panel"></div>
+    </section>
+
+    <aside class="side">
+      <section class="panel queue">
+        <div class="panel-head">
+          <h2>Queue</h2>
+          <span id="queue-summary" class="summary"></span>
+          <div class="spacer"></div>
+          <button id="cancel-all" class="btn ghost small" disabled>Stop all</button>
+          <button id="clear" class="btn ghost small">Clear finished</button>
+        </div>
+        <p class="hint">Jobs run one at a time: scenarios share ports 8000/8001 and some measure the CPU scheduler.</p>
+        <ol id="jobs" class="jobs"></ol>
+      </section>
+
+      <section class="panel log">
+        <div class="panel-head">
+          <h2 id="log-title">Logs</h2>
+          <span id="log-status"></span>
+          <div class="spacer"></div>
+          <label class="toggle" title="Always show the job that is running">
+            <input type="checkbox" id="follow" checked> Follow running
+          </label>
+          <a id="log-raw" class="btn ghost small" target="_blank" hidden>Raw</a>
+        </div>
+        <pre id="log" class="logview"><span class="empty">Pick a scenario and press Run. Its output appears here live.</span></pre>
+      </section>
+    </aside>
+  </main>
+
+  <div id="toast" class="toast" role="status"></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>
